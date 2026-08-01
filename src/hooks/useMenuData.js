@@ -30,9 +30,10 @@ export const useMenuData = () => {
     try {
       setError('');
       setSuccess('');
-      await menuApi.createCategory(restaurantId, name, parent);
+      const data = await menuApi.createCategory(restaurantId, name, parent);
       setSuccess('Category folder added successfully!');
       await fetchMenuData();
+      return data;
     } catch (err) {
       console.error('Error adding category:', err);
       setError(err.response?.data?.name?.[0] || 'Failed to add category.');

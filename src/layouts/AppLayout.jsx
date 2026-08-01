@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const AppLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, activeTenantId, setActiveTenantId } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -53,11 +53,11 @@ const AppLayout = () => {
     )},
   ];
 
-  const navigation = user?.role === 'admin' ? adminNavigation : ownerNavigation;
-
+  const navigation = (user?.role === 'admin' && !activeTenantId) ? adminNavigation : ownerNavigation;
+  const isImpersonating = user?.role === 'admin' && activeTenantId;
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0f1015] flex flex-col md:flex-row text-gray-100 font-sans">
+    <div className="fixed inset-0 overflow-hidden bg-[#0f1015] flex flex-col md:flex-row text-gray-100 font-sans">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col bg-[#161720] border-r border-[#262837] shrink-0">
         <div className="flex items-center h-16 px-6 border-b border-[#262837] bg-[#12131b]">
@@ -183,7 +183,24 @@ const AppLayout = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto">
+        {isImpersonating && (
+          <div className="bg-amber-500 text-[#0f1015] px-6 py-3 flex items-center justify-between font-semibold shadow-md z-30">
+            <div className="flex items-center gap-2 text-sm">
+              <svg className="h-5 w-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              You are impersonating a restaurant (ID: {activeTenantId})
+            </div>
+            <button
+              onClick={() => setActiveTenantId(null)}
+              className="text-xs px-3 py-1.5 bg-[#0f1015] text-amber-500 hover:text-amber-400 font-bold rounded-lg transition"
+            >
+              Exit Impersonation
+            </button>
+          </div>
+        )}
         <div className="flex-1 p-6 md:p-10 max-w-7xl w-full mx-auto">
           <Outlet />
         </div>

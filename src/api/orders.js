@@ -8,8 +8,8 @@ export const ordersApi = {
   },
 
   // Public action: Fetch the status of a specific order
-  getOrderStatus: async (orderId) => {
-    const response = await api.get(`/api/orders/${orderId}/status/`);
+  getOrderStatus: async (token) => {
+    const response = await api.get(`/api/orders/status/?token=${token}`);
     return response.data;
   },
 
@@ -26,8 +26,8 @@ export const ordersApi = {
   },
 
   // Public action: Cancel order (only allowed if pending)
-  cancelOrder: async (orderId) => {
-    const response = await api.post(`/api/orders/${orderId}/cancel/`);
+  cancelOrder: async (token) => {
+    const response = await api.post(`/api/orders/cancel/`, { token });
     return response.data;
   }
 };

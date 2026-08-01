@@ -19,6 +19,7 @@ const AdminUsersPage = () => {
     next: null,
     previous: null,
   });
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   const [actionUserId, setActionUserId] = useState(null); // to track loading for individual user toggles
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -33,6 +34,17 @@ const AdminUsersPage = () => {
     setStatusFilter(statusParam);
     setCurrentPage(1);
   }, [statusParam]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.action-menu-container')) {
+        setOpenDropdownId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Debounce search term to prevent excessive API requests
   useEffect(() => {
@@ -205,8 +217,8 @@ const AdminUsersPage = () => {
       )}
 
       {/* Users table */}
-      <div className="bg-[#161720] border border-[#262837] rounded-2xl shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-[#161720] border border-[#262837] rounded-2xl shadow-xl overflow-visible">
+        <div className="w-full overflow-visible">
           {loading ? (
             <div className="flex h-[200px] items-center justify-center bg-[#161720]">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent"></div>
@@ -257,62 +269,30 @@ const AdminUsersPage = () => {
                       </td>
                       <td className="px-6 py-4">
                         {user.role === 'owner' && user.subscription ? (
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-gray-400 capitalize">
-                                {user.subscription.plan === 'free_trial' ? 'Free Trial' : 'Premium'}
-                              </span>
-                              
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
-                                user.subscription.status === 'active'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                  : user.subscription.status === 'pending'
-                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
-                                    : user.subscription.status === 'stopped'
-                                      ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                      : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                              }`}>
-                                {user.subscription.status === 'active' && user.subscription.days_remaining > 0
-                                  ? `${user.subscription.days_remaining}d Left`
-                                  : user.subscription.status === 'active'
-                                    ? 'Expired'
-                                    : user.subscription.status === 'stopped'
-                                      ? 'Stopped'
-                                      : user.subscription.status === 'pending'
-                                        ? 'Pending'
-                                        : user.subscription.status}
-                              </span>
-                            </div>
-
-                            <div className="flex gap-2">
-                              {user.subscription.status === 'pending' && (
-                                <button
-                                  onClick={() => handleUpdateSubscription(user.id, 'free_trial', 'active')}
-                                  disabled={actionUserId === user.id}
-                                  className="text-[10px] px-2 py-0.5 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition duration-150 disabled:opacity-50"
-                                >
-                                  Approve
-                                </button>
-                              )}
-                              {user.subscription.status === 'active' && (
-                                <button
-                                  onClick={() => handleUpdateSubscription(user.id, 'free_trial', 'stopped')}
-                                  disabled={actionUserId === user.id}
-                                  className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-slate-950 font-semibold border border-red-500/30 transition duration-150 disabled:opacity-50"
-                                >
-                                  Stop
-                                </button>
-                              )}
-                              {(user.subscription.status === 'stopped' || user.subscription.status === 'expired') && (
-                                <button
-                                  onClick={() => handleUpdateSubscription(user.id, 'free_trial', 'active')}
-                                  disabled={actionUserId === user.id}
-                                  className="text-[10px] px-2 py-0.5 rounded bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold transition duration-150 disabled:opacity-50"
-                                >
-                                  Continue
-                                </button>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-400 capitalize">
+                              {user.subscription.plan === 'free_trial' ? 'Free Trial' : 'Premium'}
+                            </span>
+                            
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
+                              user.subscription.status === 'active'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                : user.subscription.status === 'pending'
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
+                                  : user.subscription.status === 'stopped'
+                                    ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                    : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                            }`}>
+                              {user.subscription.status === 'active' && user.subscription.days_remaining > 0
+                                ? `${user.subscription.days_remaining}d Left`
+                                : user.subscription.status === 'active'
+                                  ? 'Expired'
+                                  : user.subscription.status === 'stopped'
+                                    ? 'Stopped'
+                                    : user.subscription.status === 'pending'
+                                      ? 'Pending'
+                                      : user.subscription.status}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-gray-600">—</span>
@@ -327,12 +307,82 @@ const AdminUsersPage = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {user.role !== 'admin' && (
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-red-500/20 hover:border-transparent text-red-400 hover:text-[#0f1015] bg-red-500/5 hover:bg-red-500 transition duration-300 font-semibold"
-                          >
-                            Delete
-                          </button>
+                          <div className={`relative inline-block text-left action-menu-container ${openDropdownId === user.id ? 'z-50' : ''}`}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(openDropdownId === user.id ? null : user.id);
+                              }}
+                              className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-[#262837] transition duration-200"
+                            >
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                            
+                            {openDropdownId === user.id && (
+                              <div className="absolute right-0 mt-2 w-48 whitespace-nowrap origin-top-right rounded-xl bg-[#1a1b26] border border-[#262837] shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10 overflow-hidden">
+                                <div className="py-1">
+                                  {user.role === 'owner' && user.subscription?.status === 'pending' && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        handleUpdateSubscription(user.id, 'free_trial', 'active');
+                                      }}
+                                      className="group flex w-full items-center px-4 py-2 text-sm text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 transition duration-150"
+                                    >
+                                      <svg className="mr-2.5 h-4 w-4 text-emerald-500/70 group-hover:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                      Approve Trial
+                                    </button>
+                                  )}
+                                  {user.role === 'owner' && user.subscription?.status === 'active' && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        handleUpdateSubscription(user.id, 'free_trial', 'stopped');
+                                      }}
+                                      className="group flex w-full items-center px-4 py-2 text-sm text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 transition duration-150"
+                                    >
+                                      <svg className="mr-2.5 h-4 w-4 text-amber-500/70 group-hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      Stop Trial
+                                    </button>
+                                  )}
+                                  {user.role === 'owner' && (user.subscription?.status === 'stopped' || user.subscription?.status === 'expired') && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        handleUpdateSubscription(user.id, 'free_trial', 'active');
+                                      }}
+                                      className="group flex w-full items-center px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition duration-150"
+                                    >
+                                      <svg className="mr-2.5 h-4 w-4 text-blue-500/70 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      Continue Trial
+                                    </button>
+                                  )}
+                                  {user.role === 'owner' && <div className="h-px bg-[#262837] my-1 w-full" />}
+                                  <button
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      handleDeleteUser(user.id);
+                                    }}
+                                    className="group flex w-full items-center px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition duration-150"
+                                  >
+                                    <svg className="mr-2.5 h-4 w-4 text-red-500/70 group-hover:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete Account
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

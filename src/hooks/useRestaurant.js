@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import restaurantApi from '../api/restaurant';
+import { useAuth } from '../context/AuthContext';
 
 export const useRestaurant = () => {
+  const { setActiveTenantId } = useAuth();
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,6 +37,9 @@ export const useRestaurant = () => {
       setSuccess('');
       const data = await restaurantApi.createProfile(formData);
       setRestaurant(data);
+      if (setActiveTenantId) {
+        setActiveTenantId(data.id);
+      }
       setSuccess('Restaurant profile created successfully!');
       return data;
     } catch (err) {
@@ -44,7 +49,7 @@ export const useRestaurant = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setActiveTenantId]);
 
   const updateRestaurant = useCallback(async (id, formData) => {
     try {

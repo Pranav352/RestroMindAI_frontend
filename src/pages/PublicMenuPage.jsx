@@ -24,15 +24,15 @@ const PublicMenuPage = () => {
   const [cancellingOrder, setCancellingOrder] = useState(false);
 
   const handleCancelOrder = async () => {
-    if (!activeOrderId) return;
+    if (!activeOrderToken) return;
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
 
     try {
       setCancellingOrder(true);
-      const updatedOrder = await ordersApi.cancelOrder(activeOrderId);
+      const updatedOrder = await ordersApi.cancelOrder(activeOrderToken);
       setActiveOrder(updatedOrder);
       // Remove from localStorage so it does not persist active tracking
-      localStorage.removeItem(`active_order_${restaurantId}`);
+      localStorage.removeItem(`active_order_token_${restaurantId}`);
     } catch (err) {
       console.error('Error cancelling order:', err);
       alert(err.response?.data?.error || 'Failed to cancel order. It might already be in preparation.');
@@ -42,21 +42,22 @@ const PublicMenuPage = () => {
   };
 
   // Active Order Tracker (persisted locally)
-  const [activeOrderId, setActiveOrderId] = useState(() => {
-    return localStorage.getItem(`active_order_${restaurantId}`) || null;
+  const [activeOrderToken, setActiveOrderToken] = useState(() => {
+    return localStorage.getItem(`active_order_token_${restaurantId}`) || null;
   });
   const [activeOrder, setActiveOrder] = useState(null);
 
   const categoryRefs = useRef({});
   const pillsContainerRef = useRef(null);
+  const stickyHeaderRef = useRef(null);
 
   // Poll order status if there is an active order
-  const fetchActiveOrderStatus = async (orderId) => {
+  const fetchActiveOrderStatus = async (token) => {
     try {
-      const data = await ordersApi.getOrderStatus(orderId);
+      const data = await ordersApi.getOrderStatus(token);
       setActiveOrder(data);
       if (data.status === 'completed' || data.status === 'cancelled') {
-        localStorage.removeItem(`active_order_${restaurantId}`);
+        localStorage.removeItem(`active_order_token_${restaurantId}`);
       }
     } catch (err) {
       console.error('Error fetching order status:', err);
@@ -64,16 +65,16 @@ const PublicMenuPage = () => {
   };
 
   useEffect(() => {
-    if (activeOrderId) {
-      fetchActiveOrderStatus(activeOrderId);
+    if (activeOrderToken) {
+      fetchActiveOrderStatus(activeOrderToken);
       const interval = setInterval(() => {
-        fetchActiveOrderStatus(activeOrderId);
+        fetchActiveOrderStatus(activeOrderToken);
       }, 8000);
       return () => clearInterval(interval);
     } else {
       setActiveOrder(null);
     }
-  }, [activeOrderId]);
+  }, [activeOrderToken]);
 
   // Cart operations
   const addToCart = (item) => {
@@ -135,8 +136,8 @@ const PublicMenuPage = () => {
         customer_name: customerName,
         items: itemsArray,
       });
-      localStorage.setItem(`active_order_${restaurantId}`, response.id);
-      setActiveOrderId(response.id);
+      localStorage.setItem(`active_order_token_${restaurantId}`, response.tracking_token);
+      setActiveOrderToken(response.tracking_token);
       setCart({});
       setIsCartOpen(false);
     } catch (err) {
@@ -174,7 +175,8 @@ const PublicMenuPage = () => {
     setActiveCategory(categoryId);
     const element = categoryRefs.current[categoryId];
     if (element) {
-      const offset = 140; // Height of sticky header + pills
+      const headerHeight = stickyHeaderRef.current ? stickyHeaderRef.current.offsetHeight : 180;
+      const offset = headerHeight + 20; // Extra padding
       const bodyRect = document.body.getBoundingClientRect().top;
       const elementRect = element.getBoundingClientRect().top;
       const elementPosition = elementRect - bodyRect;
@@ -193,7 +195,7 @@ const PublicMenuPage = () => {
 
     const observerOptions = {
       root: null,
-      rootMargin: '-140px 0px -40% 0px',
+      rootMargin: '-210px 0px -40% 0px',
       threshold: 0
     };
 
@@ -281,13 +283,19 @@ const PublicMenuPage = () => {
 
   const hasItems = filteredCategories.length > 0;
 
+  const getTotalItems = (category) => {
+    const directItems = category.items?.length || 0;
+    const subItems = category.subcategories?.reduce((acc, sub) => acc + (sub.items?.length || 0), 0) || 0;
+    return directItems + subItems;
+  };
+
   return (
     <div className="min-h-screen bg-[#0f1015] text-gray-100 selection:bg-amber-500/30 selection:text-amber-300">
       {/* Maximum-width wrapper for premium mobile presentation */}
       <div className="max-w-[480px] mx-auto bg-[#12131a] min-h-screen pb-16 shadow-2xl border-x border-[#1d202d] flex flex-col">
         
         {/* Sticky Header Top Section */}
-        <div className="sticky top-0 z-30 bg-[#12131a]/95 backdrop-blur-md border-b border-[#1f2231]">
+        <div ref={stickyHeaderRef} className="sticky top-0 z-30 bg-[#12131a]/95 backdrop-blur-md border-b border-[#1f2231]">
           {/* Restaurant Banner & Meta */}
           <div className="px-5 py-4 flex items-center justify-between gap-4">
             <div>
@@ -373,19 +381,20 @@ const PublicMenuPage = () => {
                 key={category.id}
                 ref={(el) => (categoryRefs.current[category.id] = el)}
                 data-category-id={category.id}
-                className="space-y-4 scroll-mt-36"
+                className="space-y-4"
+                style={{ scrollMarginTop: '210px' }}
               >
                 {/* Category Header */}
                 <h2 className="text-base font-bold font-heading text-amber-500 border-b border-[#1f2231] pb-2 flex justify-between items-center">
                   <span>{category.name}</span>
                   <span className="text-[10px] bg-[#1a1b24] text-gray-400 px-2 py-0.5 rounded-full font-medium">
-                    {category.items.length} {category.items.length === 1 ? 'item' : 'items'}
+                    {getTotalItems(category)} {getTotalItems(category) === 1 ? 'item' : 'items'}
                   </span>
                 </h2>
 
                 {/* Category Dishes List */}
                 {category.items.length > 0 && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 mt-4">
                     {category.items.map((item) => (
                       <div
                         key={item.id}
@@ -470,8 +479,8 @@ const PublicMenuPage = () => {
                 )}
 
                 {/* Subcategories */}
-                {category.subcategories && category.subcategories.map(subCat => (
-                  <div key={subCat.id} className="mt-8 pl-4 border-l-[3px] border-[#252838]">
+                {category.subcategories && category.subcategories.map((subCat, index) => (
+                  <div key={subCat.id} className={`${index === 0 && category.items.length === 0 ? 'mt-4' : 'mt-8'} pl-4 border-l-[3px] border-[#252838]`}>
                     <h3 className="text-sm font-bold font-heading text-gray-300 pb-3 flex justify-between items-center">
                       <span>{subCat.name}</span>
                       <span className="text-[10px] bg-[#1a1b24] text-gray-500 px-2 py-0.5 rounded-full font-medium">
@@ -757,8 +766,8 @@ const PublicMenuPage = () => {
 
                   <button
                     onClick={() => {
-                      localStorage.removeItem(`active_order_${restaurantId}`);
-                      setActiveOrderId(null);
+                      localStorage.removeItem(`active_order_token_${restaurantId}`);
+                      setActiveOrderToken(null);
                       setActiveOrder(null);
                     }}
                     className="w-full py-3 bg-[#1d1f2b] hover:bg-[#252839] border border-[#2c2f42] text-gray-300 hover:text-white rounded-xl text-xs font-bold transition mt-2"
