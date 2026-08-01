@@ -7,14 +7,41 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [activeTenantId, setActiveTenantIdState] = useState(() => localStorage.getItem('active_tenant_id') || null);
+
+  const setActiveTenantId = (id) => {
+    if (id) {
+      localStorage.setItem('active_tenant_id', id);
+      setActiveTenantIdState(id);
+    } else {
+      localStorage.removeItem('active_tenant_id');
+      setActiveTenantIdState(null);
+    }
+  };
+
   const fetchCurrentUser = async () => {
     try {
       const response = await api.get('/api/auth/me/');
-      setUser(response.data);
-      localStorage.setItem('user_info', JSON.stringify(response.data));
+      const userData = response.data;
+      setUser(userData);
+      localStorage.setItem('user_info', JSON.stringify(userData));
+      
+      // If owner, fetch their restaurant to set active tenant
+      if (userData.role === 'owner') {
+        try {
+          const restResponse = await api.get('/api/restaurants/');
+          if (restResponse.data && restResponse.data.length > 0) {
+            setActiveTenantId(restResponse.data[0].id);
+          }
+        } catch (restError) {
+          console.error('Failed to fetch owner restaurants:', restError);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch current user:', error);
-      logoutLocal();
+      if (error.response && error.response.status === 401) {
+        logoutLocal();
+      }
     } finally {
       setLoading(false);
     }
@@ -43,6 +70,9 @@ export const AuthProvider = ({ children }) => {
     if (userData) {
       localStorage.setItem('user_info', JSON.stringify(userData));
       setUser(userData);
+      if (userData.role === 'owner') {
+        fetchCurrentUser(); // To fetch and set tenant ID
+      }
     }
   };
 
@@ -50,7 +80,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_info');
+    localStorage.removeItem('active_tenant_id');
     setUser(null);
+    setActiveTenantIdState(null);
   };
 
   const logout = async () => {
@@ -70,6 +102,8 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     isAuthenticated: !!user,
+    activeTenantId,
+    setActiveTenantId,
     login,
     logout,
     refreshUser: fetchCurrentUser,

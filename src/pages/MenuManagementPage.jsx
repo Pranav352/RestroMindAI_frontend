@@ -40,9 +40,11 @@ const MenuManagementPage = () => {
   // Category Form State
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [categoryName, setCategoryName] = useState('');
-  const [categoryParent, setCategoryParent] = useState('');
+  const [subCategories, setSubCategories] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editCategoryName, setEditCategoryName] = useState('');
+  const [addingSubToCategory, setAddingSubToCategory] = useState(null);
+  const [newSubCategoryName, setNewSubCategoryName] = useState('');
 
   // MenuItem Modal State
   const [showItemModal, setShowItemModal] = useState(false);
@@ -58,6 +60,9 @@ const MenuManagementPage = () => {
   const [itemImage, setItemImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [modalError, setModalError] = useState('');
+  
+  // Collapsed categories state
+  const [collapsedCategories, setCollapsedCategories] = useState({});
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -89,9 +94,15 @@ const MenuManagementPage = () => {
     e.preventDefault();
     if (!categoryName.trim() || !restaurant) return;
     try {
-      await addCategory(restaurant.id, categoryName.trim(), categoryParent || null);
+      const parentCat = await addCategory(restaurant.id, categoryName.trim(), null);
+      if (subCategories.trim()) {
+        const subs = subCategories.split(',').map(s => s.trim()).filter(Boolean);
+        for (const sub of subs) {
+          await addCategory(restaurant.id, sub, parentCat.id);
+        }
+      }
       setCategoryName('');
-      setCategoryParent('');
+      setSubCategories('');
       setShowAddCategory(false);
     } catch (err) {
       // Error message is set in hook
@@ -105,6 +116,18 @@ const MenuManagementPage = () => {
       await renameCategory(editingCategory.id, editCategoryName.trim());
       setEditingCategory(null);
       setEditCategoryName('');
+    } catch (err) {
+      // Error message is set in hook
+    }
+  };
+
+  const handleAddSubCategory = async (e) => {
+    e.preventDefault();
+    if (!newSubCategoryName.trim() || !addingSubToCategory || !restaurant) return;
+    try {
+      await addCategory(restaurant.id, newSubCategoryName.trim(), addingSubToCategory);
+      setNewSubCategoryName('');
+      setAddingSubToCategory(null);
     } catch (err) {
       // Error message is set in hook
     }
@@ -373,17 +396,14 @@ const MenuManagementPage = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Parent Category (Optional)</label>
-              <select
-                value={categoryParent}
-                onChange={(e) => setCategoryParent(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-[#1e202e] border border-[#2c2f42] focus:border-amber-500/50 text-gray-100 focus:outline-none focus:ring-1 focus:ring-amber-500/30 appearance-none"
-              >
-                <option value="">None (Top Level)</option>
-                {categories.filter(c => !c.parent).map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Sub-categories (optional)</label>
+              <input
+                type="text"
+                value={subCategories}
+                onChange={(e) => setSubCategories(e.target.value)}
+                placeholder="e.g. Veg, Non-Veg (comma-separated)"
+                className="w-full px-4 py-3 rounded-xl bg-[#1e202e] border border-[#2c2f42] focus:border-amber-500/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+              />
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto shrink-0 mt-4 sm:mt-0">
@@ -392,7 +412,7 @@ const MenuManagementPage = () => {
               onClick={() => {
                 setShowAddCategory(false);
                 setCategoryName('');
-                setCategoryParent('');
+                setSubCategories('');
               }}
               className="w-1/2 sm:w-auto px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold transition"
             >
@@ -440,6 +460,9 @@ const MenuManagementPage = () => {
           {categories.filter(cat => !cat.parent).map((cat) => {
             const catItems = menuItems.filter((item) => item.category === cat.id);
             const subCategories = categories.filter((subCat) => subCat.parent === cat.id);
+            const hasSubcategories = subCategories.length > 0;
+            const isCollapsed = collapsedCategories[cat.id] || false;
+            const isExpanded = !isCollapsed;
  
             return (
               <div key={cat.id} className="space-y-4">
@@ -458,9 +481,19 @@ const MenuManagementPage = () => {
                   toggleAvailability={toggleItemAvailability}
                   currency={currencySymbol}
                   readOnly={!isSubscriptionActive}
+                  isTopLevel={true}
+                  addingSubToCategory={addingSubToCategory}
+                  setAddingSubToCategory={setAddingSubToCategory}
+                  newSubCategoryName={newSubCategoryName}
+                  setNewSubCategoryName={setNewSubCategoryName}
+                  handleAddSubCategory={handleAddSubCategory}
+                  hasSubcategories={hasSubcategories}
+                  subCategoriesCount={subCategories.length}
+                  isExpanded={isExpanded}
+                  onToggleExpand={() => setCollapsedCategories(prev => ({ ...prev, [cat.id]: !isCollapsed }))}
                 />
                 
-                {subCategories.length > 0 && (
+                {hasSubcategories && isExpanded && (
                   <div className="pl-8 sm:pl-12 space-y-4 border-l-2 border-[#262837] ml-4 sm:ml-6 mt-4">
                     {subCategories.map((subCat) => {
                       const subCatItems = menuItems.filter((item) => item.category === subCat.id);
@@ -481,6 +514,7 @@ const MenuManagementPage = () => {
                           toggleAvailability={toggleItemAvailability}
                           currency={currencySymbol}
                           readOnly={!isSubscriptionActive}
+                          isTopLevel={false}
                         />
                       );
                     })}

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import adminApi from '../api/admin';
+import { useAuth } from '../context/AuthContext';
 
 const AdminRestaurantsPage = () => {
+  const { setActiveTenantId } = useAuth();
+  const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -174,12 +178,23 @@ const AdminRestaurantsPage = () => {
                         }) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleDeleteRestaurant(res.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-red-500/20 hover:border-transparent text-red-400 hover:text-[#0f1015] bg-red-500/5 hover:bg-red-500 transition duration-300 font-semibold"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setActiveTenantId(res.id);
+                              navigate('/');
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-400 hover:text-[#0f1015] bg-amber-500/10 hover:bg-amber-500 transition duration-300 font-semibold"
+                          >
+                            Impersonate
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRestaurant(res.id)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400 hover:text-[#0f1015] bg-red-500/5 hover:bg-red-500 transition duration-300 font-semibold"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
