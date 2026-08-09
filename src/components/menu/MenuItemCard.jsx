@@ -1,7 +1,8 @@
 import React from 'react';
+import { getMediaUrl } from '../../config/env';
 
 const MenuItemCard = ({ item, openEditItemModal, handleDeleteItem, toggleAvailability, currency = '₹', readOnly = false }) => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const imageUrl = getMediaUrl(item.image);
   
   return (
     <div className="flex gap-4 p-4 rounded-xl bg-[#1e202e] border border-[#2c2f42] hover:border-[#383c54] transition duration-200">
@@ -9,11 +10,7 @@ const MenuItemCard = ({ item, openEditItemModal, handleDeleteItem, toggleAvailab
       <div className="w-20 h-20 rounded-lg bg-[#161720] overflow-hidden flex items-center justify-center shrink-0 border border-[#2c2f42]">
         {item.image ? (
           <img
-            src={
-              item.image.startsWith('http')
-                ? item.image
-                : `${apiBaseUrl}${item.image}`
-            }
+            src={imageUrl}
             alt={item.name}
             className="w-full h-full object-cover"
           />

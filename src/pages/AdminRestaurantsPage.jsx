@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import adminApi from '../api/admin';
 import { useAuth } from '../context/AuthContext';
+import { getMediaUrl } from '../config/env';
 
 const AdminRestaurantsPage = () => {
   const { setActiveTenantId } = useAuth();
@@ -150,11 +151,7 @@ const AdminRestaurantsPage = () => {
                           <div className="h-10 w-10 rounded-xl bg-[#1e202e] border border-[#2c2f42] flex items-center justify-center text-gray-500 overflow-hidden shrink-0">
                             {res.logo ? (
                               <img
-                                src={
-                                  res.logo.startsWith('http')
-                                    ? res.logo
-                                    : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${res.logo}`
-                                }
+                                src={getMediaUrl(res.logo)}
                                 alt={res.name}
                                 className="h-full w-full object-cover"
                               />

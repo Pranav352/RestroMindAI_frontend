@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import { getMediaUrl } from '../config/env';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -779,11 +780,7 @@ const OwnerDashboard = ({ user, refreshUser }) => {
         <div className="w-20 h-20 rounded-2xl bg-[#1e202e] border border-[#2c2f42] overflow-hidden flex items-center justify-center shrink-0">
           {restaurant.logo ? (
             <img
-              src={
-                restaurant.logo.startsWith('http')
-                  ? restaurant.logo
-                  : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${restaurant.logo}`
-              }
+              src={getMediaUrl(restaurant.logo)}
               alt={restaurant.name}
               className="w-full h-full object-cover"
             />

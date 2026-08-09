@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '../config/env';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: getApiBaseUrl(),
 });
 
 // Request interceptor to attach JWT token
@@ -78,7 +79,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/auth/token/refresh/`,
+          `${getApiBaseUrl()}/api/auth/token/refresh/`,
           { refresh: refreshToken }
         );
         const { access } = response.data;

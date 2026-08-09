@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import ordersApi from '../api/orders';
+import { getApiBaseUrl, getMediaUrl } from '../config/env';
 
 const PublicMenuPage = () => {
   const { restaurantId } = useParams();
@@ -156,9 +157,8 @@ const PublicMenuPage = () => {
     try {
       setLoading(true);
       setError('');
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
       // Call standard axios directly (no JWT interceptors) for public access
-      const response = await axios.get(`${apiBaseUrl}/api/menu/public/${restaurantId}/`);
+      const response = await axios.get(`${getApiBaseUrl()}/api/menu/public/${restaurantId}/`);
       setMenuData(response.data);
       if (response.data?.categories?.length > 0) {
         setActiveCategory(response.data.categories[0].id);
@@ -258,7 +258,6 @@ const PublicMenuPage = () => {
   }
 
   const { name, logo, phone, address, categories } = menuData;
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
   // Filter items client-side based on search query
   const filteredCategories = categories.map(cat => {
@@ -310,7 +309,7 @@ const PublicMenuPage = () => {
             </div>
             {logo ? (
               <img
-                src={logo.startsWith('http') ? logo : `${apiBaseUrl}${logo}`}
+                src={getMediaUrl(logo)}
                 alt={name}
                 className="w-12 h-12 rounded-xl object-cover border border-[#2b2e40] bg-[#1a1b24] shadow-md"
               />
@@ -404,7 +403,7 @@ const PublicMenuPage = () => {
                         <div className="w-20 h-20 rounded-xl bg-[#1e202e] border border-[#2c2f42] overflow-hidden flex items-center justify-center shrink-0">
                           {item.image ? (
                             <img
-                              src={item.image.startsWith('http') ? item.image : `${apiBaseUrl}${item.image}`}
+                              src={getMediaUrl(item.image)}
                               alt={item.name}
                               className="w-full h-full object-cover"
                             />
@@ -497,7 +496,7 @@ const PublicMenuPage = () => {
                           <div className="w-16 h-16 rounded-xl bg-[#1e202e] border border-[#2c2f42] overflow-hidden flex items-center justify-center shrink-0">
                             {item.image ? (
                               <img
-                                src={item.image.startsWith('http') ? item.image : `${apiBaseUrl}${item.image}`}
+                                src={getMediaUrl(item.image)}
                                 alt={item.name}
                                 className="w-full h-full object-cover"
                               />

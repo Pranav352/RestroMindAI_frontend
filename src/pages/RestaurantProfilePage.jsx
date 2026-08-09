@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useRestaurant from '../hooks/useRestaurant';
 import { useAuth } from '../context/AuthContext';
+import { getMediaUrl } from '../config/env';
 
 const RestaurantProfilePage = () => {
   const navigate = useNavigate();
@@ -44,10 +45,7 @@ const RestaurantProfilePage = () => {
             currency: rest.currency || '₹',
           });
           if (rest.logo) {
-            const logoUrl = rest.logo.startsWith('http')
-              ? rest.logo
-              : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${rest.logo}`;
-            setLogoPreview(logoUrl);
+            setLogoPreview(getMediaUrl(rest.logo));
           }
         }
       } catch (err) {

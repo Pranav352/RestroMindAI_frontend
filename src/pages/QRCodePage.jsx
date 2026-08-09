@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import useRestaurant from '../hooks/useRestaurant';
 import qrApi from '../api/qr';
 import { useAuth } from '../context/AuthContext';
+import { getCustomerMenuUrl, getQrCodeImageUrl } from '../config/env';
 
 const QRCodePage = () => {
   const {
@@ -56,16 +57,8 @@ const QRCodePage = () => {
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    const absoluteQrUrl = qrData?.qr_code_url?.startsWith('http')
-      ? qrData.qr_code_url
-      : `${apiBaseUrl}${qrData?.qr_code_url}`;
-
-    const customerUrl = qrData?.table_number
-      ? `${window.location.origin}/menu/${restaurant?.id || ''}?table=${qrData.table_number}`
-      : qrData?.qr_code_url 
-      ? `${window.location.origin}/menu/${restaurant?.id || ''}`
-      : '';
+    const customerUrl = getCustomerMenuUrl(restaurant?.id, qrData?.table_number || tableNumber);
+    const absoluteQrUrl = getQrCodeImageUrl(customerUrl);
 
     printWindow.document.write(`
       <html>
@@ -146,11 +139,7 @@ const QRCodePage = () => {
     printWindow.document.close();
   };
 
-  const currentMenuUrl = restaurant
-    ? (qrData?.table_number
-      ? `${window.location.origin}/menu/${restaurant.id}?table=${qrData.table_number}`
-      : `${window.location.origin}/menu/${restaurant.id}`)
-    : '';
+  const currentMenuUrl = getCustomerMenuUrl(restaurant?.id, qrData?.table_number || tableNumber);
 
   const handleCopyLink = () => {
     if (!restaurant) return;
@@ -159,10 +148,7 @@ const QRCodePage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  const displayQrUrl = qrData?.qr_code_url?.startsWith('http')
-    ? qrData.qr_code_url
-    : `${apiBaseUrl}${qrData?.qr_code_url}`;
+  const displayQrUrl = qrData ? getQrCodeImageUrl(currentMenuUrl) : '';
 
   if (restaurantLoading) {
     return (

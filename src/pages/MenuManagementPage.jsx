@@ -6,6 +6,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import CategorySection from '../components/menu/CategorySection';
 import MenuItemModal from '../components/menu/MenuItemModal';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+import { getMediaUrl } from '../config/env';
 
 const MenuManagementPage = () => {
   const {
@@ -173,10 +175,8 @@ const MenuManagementPage = () => {
     });
     setItemImage(null);
     if (item.image) {
-      const imgUrl = item.image.startsWith('http')
-        ? item.image
-        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${item.image}`;
-      setImagePreview(imgUrl);
+      const imageUrl = getMediaUrl(item.image);
+      setImagePreview(imageUrl);
     } else {
       setImagePreview(null);
     }
