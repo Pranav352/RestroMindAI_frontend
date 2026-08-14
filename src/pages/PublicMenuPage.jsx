@@ -157,14 +157,32 @@ const PublicMenuPage = () => {
     try {
       setLoading(true);
       setError('');
+      const apiBase = getApiBaseUrl();
+      const finalUrl = `${apiBase}/api/menu/public/${restaurantId}/`;
+
+      console.log('--- PublicMenu API Debug ---');
+      console.log('Frontend Origin:', window.location.origin);
+      console.log('Restaurant ID:', restaurantId);
+      console.log('Table Number:', tableParam);
+      console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+      console.log('Resolved API Base URL:', apiBase);
+      console.log('Final API Request URL:', finalUrl);
+
       // Call standard axios directly (no JWT interceptors) for public access
-      const response = await axios.get(`${getApiBaseUrl()}/api/menu/public/${restaurantId}/`);
+      const response = await axios.get(finalUrl);
+      console.log('Public Menu API Success! HTTP Status:', response.status);
       setMenuData(response.data);
       if (response.data?.categories?.length > 0) {
         setActiveCategory(response.data.categories[0].id);
       }
     } catch (err) {
-      console.error('Error fetching public menu:', err);
+      console.error('--- Public Menu API Failure ---');
+      console.error('Error Message:', err.message);
+      console.error('Error Code:', err.code);
+      console.error('Response Status:', err.response?.status);
+      console.error('Response Data:', err.response?.data);
+      console.error('Request Config URL:', err.config?.url);
+      console.error('Request Object:', err.request);
       setError('Could not load the menu. Please verify the link or try again.');
     } finally {
       setLoading(false);

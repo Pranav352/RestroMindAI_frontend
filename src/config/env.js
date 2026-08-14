@@ -1,9 +1,11 @@
 export const getFrontendBaseUrl = () => {
-  return import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+  const url = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+  return url.replace(/\/+$/, '');
 };
 
 export const getApiBaseUrl = () => {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  return url.replace(/\/+$/, '');
 };
 
 export const getCustomerMenuUrl = (restaurantId, tableNumber) => {
