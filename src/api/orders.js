@@ -13,6 +13,16 @@ export const ordersApi = {
     return response.data;
   },
 
+  // Public action: Check if table is occupied and if current user is table host
+  checkTableStatus: async (restaurantId, tableNumber, token = null) => {
+    let url = `/api/orders/check_table/?restaurant_id=${restaurantId}&table_number=${tableNumber}`;
+    if (token) {
+      url += `&token=${token}`;
+    }
+    const response = await api.get(url);
+    return response.data;
+  },
+
   // Owner action: Get all orders for the owner's restaurants
   getOwnerOrders: async () => {
     const response = await api.get('/api/orders/');
