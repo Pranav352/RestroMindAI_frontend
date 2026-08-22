@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import ordersApi from '../api/orders';
 import { getApiBaseUrl, getMediaUrl } from '../config/env';
+import PopupModal from '../components/PopupModal';
 
 const PublicMenuPage = () => {
   const { restaurantId } = useParams();
@@ -15,6 +16,49 @@ const PublicMenuPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState(null);
 
+  // Custom Branded Popup State
+  const [popup, setPopup] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    primaryText: 'OK',
+    secondaryText: null,
+    onPrimary: null,
+    onSecondary: null,
+  });
+
+  const showPopup = ({
+    type = 'info',
+    title = 'Notification',
+    message = '',
+    primaryText = 'OK',
+    secondaryText = null,
+    onPrimary = null,
+    onSecondary = null,
+  }) => {
+    setPopup({
+      isOpen: true,
+      type,
+      title,
+      message,
+      primaryText,
+      secondaryText,
+      onPrimary: () => {
+        setPopup((prev) => ({ ...prev, isOpen: false }));
+        if (onPrimary) onPrimary();
+      },
+      onSecondary: () => {
+        setPopup((prev) => ({ ...prev, isOpen: false }));
+        if (onSecondary) onSecondary();
+      },
+    });
+  };
+
+  const closePopup = () => {
+    setPopup((prev) => ({ ...prev, isOpen: false }));
+  };
+
   // Cart and Order Placement States
   const [cart, setCart] = useState({});
   const [customerName, setCustomerName] = useState('');
@@ -25,23 +69,40 @@ const PublicMenuPage = () => {
   const [orderError, setOrderError] = useState('');
   const [cancellingOrder, setCancellingOrder] = useState(false);
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = () => {
     if (!activeOrderToken) return;
-    if (!window.confirm("Are you sure you want to cancel this order?")) return;
 
-    try {
-      setCancellingOrder(true);
-      const updatedOrder = await ordersApi.cancelOrder(activeOrderToken);
-      setActiveOrder(updatedOrder);
-      if (updatedOrder.status === 'cancelled') {
-        localStorage.removeItem(`active_order_token_${restaurantId}`);
-      }
-    } catch (err) {
-      console.error('Error cancelling order:', err);
-      alert(err.response?.data?.error || 'Failed to cancel order. It might already be in preparation.');
-    } finally {
-      setCancellingOrder(false);
-    }
+    showPopup({
+      type: 'confirm',
+      title: 'Cancel Order?',
+      message: 'Are you sure you want to cancel this pending order? This action cannot be undone.',
+      primaryText: 'Yes, Cancel Order',
+      secondaryText: 'Keep Order',
+      onPrimary: async () => {
+        try {
+          setCancellingOrder(true);
+          const updatedOrder = await ordersApi.cancelOrder(activeOrderToken);
+          setActiveOrder(updatedOrder);
+          if (updatedOrder.status === 'cancelled') {
+            localStorage.removeItem(`active_order_token_${restaurantId}`);
+          }
+          showPopup({
+            type: 'success',
+            title: 'Order Cancelled',
+            message: 'Your order has been cancelled successfully.',
+          });
+        } catch (err) {
+          console.error('Error cancelling order:', err);
+          showPopup({
+            type: 'error',
+            title: 'Cannot Cancel Order',
+            message: err.response?.data?.error || 'Failed to cancel order. It may already be preparing in the kitchen.',
+          });
+        } finally {
+          setCancellingOrder(false);
+        }
+      },
+    });
   };
 
   // Active Order Tracker (persisted locally)
@@ -142,7 +203,12 @@ const PublicMenuPage = () => {
   // Cart operations
   const addToCart = (item) => {
     if (tableOccupiedInfo && !activeOrder) {
-      alert(`Table ${tableOccupiedInfo.table_number} currently has an active order. Extra items can be ordered from the primary table device.`);
+      showPopup({
+        type: 'occupied',
+        title: `Table ${tableOccupiedInfo.table_number} is Occupied`,
+        message: `Table ${tableOccupiedInfo.table_number} currently has an active dining session. Extra dishes can be ordered from the primary table device.`,
+        primaryText: 'Got It',
+      });
       return;
     }
 
@@ -1212,6 +1278,19 @@ const PublicMenuPage = () => {
             </div>
           </div>
         )}
+
+        {/* Global Branded Popup Modal */}
+        <PopupModal
+          isOpen={popup.isOpen}
+          type={popup.type}
+          title={popup.title}
+          message={popup.message}
+          primaryText={popup.primaryText}
+          secondaryText={popup.secondaryText}
+          onPrimary={popup.onPrimary}
+          onSecondary={popup.onSecondary}
+          onClose={closePopup}
+        />
 
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import adminApi from '../api/admin';
 import { useAuth } from '../context/AuthContext';
 import { getMediaUrl } from '../config/env';
+import PopupModal from '../components/PopupModal';
 
 const AdminRestaurantsPage = () => {
   const { setActiveTenantId } = useAuth();
@@ -18,6 +19,40 @@ const AdminRestaurantsPage = () => {
     next: null,
     previous: null,
   });
+
+  const [popup, setPopup] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    primaryText: 'OK',
+    secondaryText: null,
+    onPrimary: null,
+    onSecondary: null,
+  });
+
+  const showPopup = ({ type = 'info', title = 'Notice', message = '', primaryText = 'OK', secondaryText = null, onPrimary = null, onSecondary = null }) => {
+    setPopup({
+      isOpen: true,
+      type,
+      title,
+      message,
+      primaryText,
+      secondaryText,
+      onPrimary: () => {
+        setPopup((prev) => ({ ...prev, isOpen: false }));
+        if (onPrimary) onPrimary();
+      },
+      onSecondary: () => {
+        setPopup((prev) => ({ ...prev, isOpen: false }));
+        if (onSecondary) onSecondary();
+      },
+    });
+  };
+
+  const closePopup = () => {
+    setPopup((prev) => ({ ...prev, isOpen: false }));
+  };
 
   // Debounce search term to prevent excessive API requests
   useEffect(() => {
@@ -61,18 +96,33 @@ const AdminRestaurantsPage = () => {
     fetchRestaurants(currentPage, debouncedSearch);
   }, [currentPage, debouncedSearch]);
 
-  const handleDeleteRestaurant = async (restaurantId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this restaurant? This will remove all their categories, menu items, and tables.')) {
-      return;
-    }
-    try {
-      await adminApi.deleteRestaurant(restaurantId);
-      setRestaurants((prev) => prev.filter((r) => r.id !== restaurantId));
-      setPagination((prev) => ({ ...prev, count: Math.max(0, prev.count - 1) }));
-    } catch (err) {
-      console.error('Error deleting restaurant:', err);
-      alert('Failed to delete restaurant.');
-    }
+  const handleDeleteRestaurant = (restaurantId) => {
+    showPopup({
+      type: 'confirm',
+      title: 'Delete Restaurant?',
+      message: 'Are you sure you want to permanently delete this restaurant? This will remove all their categories, menu items, and tables.',
+      primaryText: 'Delete Permanently',
+      secondaryText: 'Cancel',
+      onPrimary: async () => {
+        try {
+          await adminApi.deleteRestaurant(restaurantId);
+          setRestaurants((prev) => prev.filter((r) => r.id !== restaurantId));
+          setPagination((prev) => ({ ...prev, count: Math.max(0, prev.count - 1) }));
+          showPopup({
+            type: 'success',
+            title: 'Deleted Successfully',
+            message: 'The restaurant and its data have been removed.',
+          });
+        } catch (err) {
+          console.error('Error deleting restaurant:', err);
+          showPopup({
+            type: 'error',
+            title: 'Deletion Failed',
+            message: err.response?.data?.error || 'Failed to delete restaurant.',
+          });
+        }
+      },
+    });
   };
 
   const handlePageChange = (newPage) => {
@@ -271,6 +321,19 @@ const AdminRestaurantsPage = () => {
             </div>
           </div>
         )}
+
+        {/* Branded Admin Popup Modal */}
+        <PopupModal
+          isOpen={popup.isOpen}
+          type={popup.type}
+          title={popup.title}
+          message={popup.message}
+          primaryText={popup.primaryText}
+          secondaryText={popup.secondaryText}
+          onPrimary={popup.onPrimary}
+          onSecondary={popup.onSecondary}
+          onClose={closePopup}
+        />
       </div>
     </div>
   );
