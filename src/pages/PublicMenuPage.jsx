@@ -20,6 +20,7 @@ const PublicMenuPage = () => {
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState(tableParam || '');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState('cart'); // 'cart' | 'tracker'
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [cancellingOrder, setCancellingOrder] = useState(false);
@@ -32,8 +33,9 @@ const PublicMenuPage = () => {
       setCancellingOrder(true);
       const updatedOrder = await ordersApi.cancelOrder(activeOrderToken);
       setActiveOrder(updatedOrder);
-      // Remove from localStorage so it does not persist active tracking
-      localStorage.removeItem(`active_order_token_${restaurantId}`);
+      if (updatedOrder.status === 'cancelled') {
+        localStorage.removeItem(`active_order_token_${restaurantId}`);
+      }
     } catch (err) {
       console.error('Error cancelling order:', err);
       alert(err.response?.data?.error || 'Failed to cancel order. It might already be in preparation.');
@@ -47,6 +49,8 @@ const PublicMenuPage = () => {
     return localStorage.getItem(`active_order_token_${restaurantId}`) || null;
   });
   const [activeOrder, setActiveOrder] = useState(null);
+  const [completedOrder, setCompletedOrder] = useState(null);
+  const [completionCountdown, setCompletionCountdown] = useState(null);
 
   const categoryRefs = useRef({});
   const pillsContainerRef = useRef(null);
@@ -56,9 +60,19 @@ const PublicMenuPage = () => {
   const fetchActiveOrderStatus = async (token) => {
     try {
       const data = await ordersApi.getOrderStatus(token);
-      setActiveOrder(data);
-      if (data.status === 'completed' || data.status === 'cancelled') {
+      if (data.status === 'completed') {
+        // Order has been settled & completed by restaurant
+        setCompletedOrder(data);
+        setCompletionCountdown(5);
         localStorage.removeItem(`active_order_token_${restaurantId}`);
+        setActiveOrderToken(null);
+        setActiveOrder(null);
+        setIsCartOpen(false);
+      } else if (data.status === 'cancelled') {
+        setActiveOrder(data);
+        localStorage.removeItem(`active_order_token_${restaurantId}`);
+      } else {
+        setActiveOrder(data);
       }
     } catch (err) {
       console.error('Error fetching order status:', err);
@@ -70,12 +84,28 @@ const PublicMenuPage = () => {
       fetchActiveOrderStatus(activeOrderToken);
       const interval = setInterval(() => {
         fetchActiveOrderStatus(activeOrderToken);
-      }, 8000);
+      }, 5000);
       return () => clearInterval(interval);
     } else {
       setActiveOrder(null);
     }
   }, [activeOrderToken]);
+
+  // Handle completion countdown timer
+  useEffect(() => {
+    if (completionCountdown === null) return;
+    if (completionCountdown > 0) {
+      const timer = setTimeout(() => {
+        setCompletionCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      // Countdown expired: smoothly dismiss modal and reset customer view
+      setCompletedOrder(null);
+      setCompletionCountdown(null);
+      setCart({});
+    }
+  }, [completionCountdown]);
 
   // Cart operations
   const addToCart = (item) => {
@@ -112,7 +142,7 @@ const PublicMenuPage = () => {
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    const finalTable = tableParam || tableNumber;
+    const finalTable = tableParam || tableNumber || activeOrder?.table_number;
     if (!finalTable) {
       setOrderError('Please specify your table number.');
       return;
@@ -131,16 +161,26 @@ const PublicMenuPage = () => {
     try {
       setPlacingOrder(true);
       setOrderError('');
-      const response = await ordersApi.createOrder({
+
+      const payload = {
         restaurant: parseInt(restaurantId, 10),
         table_number: parseInt(finalTable, 10),
-        customer_name: customerName,
+        customer_name: customerName || activeOrder?.customer_name || '',
         items: itemsArray,
-      });
+      };
+
+      // If customer has an active open order on this table, pass tracking token to append to same order
+      if (activeOrderToken && activeOrder && activeOrder.status !== 'completed' && activeOrder.status !== 'cancelled') {
+        payload.tracking_token = activeOrderToken;
+      }
+
+      const response = await ordersApi.createOrder(payload);
       localStorage.setItem(`active_order_token_${restaurantId}`, response.tracking_token);
       setActiveOrderToken(response.tracking_token);
+      setActiveOrder(response);
       setCart({});
-      setIsCartOpen(false);
+      setDrawerMode('tracker');
+      setIsCartOpen(true);
     } catch (err) {
       console.error('Order creation error:', err);
       setOrderError(err.response?.data?.error || 'Failed to place order. Please try again.');
@@ -611,42 +651,80 @@ const PublicMenuPage = () => {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0f1015]"></span>
               </span>
               <span>
-                Order #{activeOrder.id} Status: {activeOrder.status.toUpperCase()}
+                Table {activeOrder.table_number} • Order #{activeOrder.id} ({activeOrder.status.toUpperCase()})
               </span>
             </div>
             <button
-              onClick={() => setIsCartOpen(true)}
-              className="px-2.5 py-1 bg-[#0f1015] text-amber-400 hover:text-white rounded-md font-bold transition"
+              onClick={() => {
+                setDrawerMode('tracker');
+                setIsCartOpen(true);
+              }}
+              className="px-2.5 py-1 bg-[#0f1015] text-amber-400 hover:text-white rounded-md font-bold transition flex items-center gap-1.5"
             >
-              Track Order
+              <span>Track & Bill</span>
+              <span className="text-[11px] font-extrabold text-amber-300">
+                {menuData.currency || '₹'}{parseFloat(activeOrder.total_price).toFixed(2)}
+              </span>
             </button>
           </div>
         )}
 
         {/* Branded Footer */}
-        <div className="mt-auto pt-12 pb-16 text-center">
+        <div className="mt-auto pt-12 pb-24 text-center">
           <p className="text-[10px] text-gray-500 tracking-wider">
             POWERED BY <span className="font-bold font-heading text-amber-500/75">RESTROMIND AI</span>
           </p>
         </div>
 
-        {/* Sticky Bottom View Cart Bar */}
-        {Object.keys(cart).length > 0 && !activeOrder && (
+        {/* Sticky Bottom Bar */}
+        {Object.keys(cart).length > 0 ? (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-40">
             <button
-              onClick={() => setIsCartOpen(true)}
+              onClick={() => {
+                setDrawerMode('cart');
+                setIsCartOpen(true);
+              }}
               className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-[#0f1015] font-extrabold py-3.5 px-6 rounded-2xl shadow-2xl flex items-center justify-between transition hover:scale-[1.01] active:scale-[0.99]"
             >
               <div className="flex items-center gap-2">
                 <span className="bg-[#0f1015] text-amber-500 text-xs font-black h-6 w-6 rounded-lg flex items-center justify-center">
                   {Object.values(cart).reduce((a, b) => a + b.quantity, 0)}
                 </span>
-                <span>View Cart</span>
+                <span>{activeOrder ? `Add to Table (Round ${(activeOrder.rounds_count || 1) + 1})` : 'View Basket'}</span>
               </div>
-              <span className="font-heading">
+              <span className="font-heading text-base">
                 {menuData.currency || '₹'}
                 {Object.values(cart).reduce((a, b) => a + b.quantity * parseFloat(b.item.price), 0).toFixed(2)}
               </span>
+            </button>
+          </div>
+        ) : activeOrder && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-40">
+            <button
+              onClick={() => {
+                setDrawerMode('tracker');
+                setIsCartOpen(true);
+              }}
+              className="w-full bg-[#161720]/95 backdrop-blur-md border border-amber-500/30 hover:border-amber-500/60 text-white font-extrabold py-3 px-5 rounded-2xl shadow-2xl flex items-center justify-between transition hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                </span>
+                <div className="text-left">
+                  <p className="text-xs text-gray-200 font-bold">Active Table {activeOrder.table_number}</p>
+                  <p className="text-[10px] text-amber-400 font-semibold uppercase">{activeOrder.status} • {activeOrder.items?.length || 0} Items</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold text-amber-400 font-heading">
+                  {menuData.currency || '₹'}{parseFloat(activeOrder.total_price).toFixed(2)}
+                </span>
+                <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded-lg border border-amber-500/30">
+                  Track
+                </span>
+              </div>
             </button>
           </div>
         )}
@@ -656,12 +734,40 @@ const PublicMenuPage = () => {
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm">
             <div className="absolute inset-0" onClick={() => setIsCartOpen(false)}></div>
 
-            <div className="relative bg-[#161720] border-t border-[#262837] w-full max-w-[480px] rounded-t-3xl max-h-[85vh] overflow-y-auto px-6 py-6 shadow-2xl flex flex-col no-scrollbar">
-              <div className="w-12 h-1.5 bg-[#2c2f42] rounded-full mx-auto mb-6"></div>
+            <div className="relative bg-[#161720] border-t border-[#262837] w-full max-w-[480px] rounded-t-3xl max-h-[88vh] overflow-y-auto px-6 py-6 shadow-2xl flex flex-col no-scrollbar">
+              <div className="w-12 h-1.5 bg-[#2c2f42] rounded-full mx-auto mb-5"></div>
 
-              <div className="flex justify-between items-center mb-6">
+              {/* Drawer Mode Toggle Tabs (if both active order and items in cart exist) */}
+              {activeOrder && Object.keys(cart).length > 0 && (
+                <div className="flex bg-[#1d1f2b] p-1 rounded-xl mb-4 border border-[#2c2f42]">
+                  <button
+                    onClick={() => setDrawerMode('cart')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                      drawerMode === 'cart' ? 'bg-amber-500 text-[#0f1015]' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    New Items ({Object.values(cart).reduce((a, b) => a + b.quantity, 0)})
+                  </button>
+                  <button
+                    onClick={() => setDrawerMode('tracker')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                      drawerMode === 'tracker' ? 'bg-amber-500 text-[#0f1015]' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Current Order & Bill
+                  </button>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center mb-5">
                 <h3 className="text-lg font-bold font-heading text-gray-200">
-                  {activeOrder ? 'Track Your Order' : 'Your Basket'}
+                  {drawerMode === 'tracker' && activeOrder ? (
+                    `Table ${activeOrder.table_number} Order Tracker`
+                  ) : activeOrder ? (
+                    `Add to Order (Round ${(activeOrder.rounds_count || 1) + 1})`
+                  ) : (
+                    'Your Basket'
+                  )}
                 </h3>
                 <button
                   onClick={() => setIsCartOpen(false)}
@@ -673,18 +779,19 @@ const PublicMenuPage = () => {
                 </button>
               </div>
 
-              {activeOrder ? (
-                /* ORDER TRACKER STATE */
-                <div className="space-y-6">
-                  <div className="bg-[#1d1f2b] border border-[#2c2f42] p-5 rounded-2xl text-center space-y-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Order Status</p>
-                    <div className="inline-flex px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/25">
+              {drawerMode === 'tracker' && activeOrder ? (
+                /* ORDER TRACKER & CONSOLIDATED BILL */
+                <div className="space-y-5">
+                  {/* Overall Order Status Banner */}
+                  <div className="bg-[#1d1f2b] border border-[#2c2f42] p-4 rounded-2xl text-center space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Order Progress</p>
+                    <div className="inline-flex px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/25">
                       {activeOrder.status}
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 max-w-xs mx-auto">
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                    <div className="flex items-center justify-between pt-2 max-w-xs mx-auto">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold ${
                           ['pending', 'preparing', 'served', 'completed'].includes(activeOrder.status)
                             ? 'bg-amber-500 text-[#0f1015]'
                             : 'bg-[#2c2f42] text-gray-500'
@@ -698,8 +805,8 @@ const PublicMenuPage = () => {
                           : 'bg-[#2c2f42]'
                       }`}></div>
 
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold ${
                           ['preparing', 'served', 'completed'].includes(activeOrder.status)
                             ? 'bg-amber-500 text-[#0f1015] animate-pulse'
                             : 'bg-[#2c2f42] text-gray-500'
@@ -715,8 +822,8 @@ const PublicMenuPage = () => {
                           : 'bg-[#2c2f42]'
                       }`}></div>
 
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold ${
                           ['served', 'completed'].includes(activeOrder.status)
                             ? 'bg-emerald-500 text-[#0f1015]'
                             : 'bg-[#2c2f42] text-gray-500'
@@ -726,84 +833,138 @@ const PublicMenuPage = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-3 bg-[#1d1f2b] border border-[#2c2f42] p-4 rounded-2xl text-xs">
-                    <div className="flex justify-between text-gray-400">
-                      <span>Order ID</span>
-                      <span className="font-bold text-gray-200">#{activeOrder.id}</span>
+                  {/* Order Metadata */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-[#1d1f2b] border border-[#2c2f42] p-3 rounded-xl">
+                      <span className="text-gray-400 block text-[10px] uppercase font-bold">Order ID</span>
+                      <span className="font-extrabold text-gray-200 text-sm">#{activeOrder.id}</span>
                     </div>
-                    <div className="flex justify-between text-gray-400">
-                      <span>Table Number</span>
-                      <span className="font-bold text-amber-500">Table {activeOrder.table_number}</span>
+                    <div className="bg-[#1d1f2b] border border-[#2c2f42] p-3 rounded-xl">
+                      <span className="text-gray-400 block text-[10px] uppercase font-bold">Table</span>
+                      <span className="font-extrabold text-amber-500 text-sm">Table {activeOrder.table_number}</span>
                     </div>
-                    {activeOrder.customer_name && (
-                      <div className="flex justify-between text-gray-400">
-                        <span>Customer</span>
-                        <span className="font-bold text-gray-200">{activeOrder.customer_name}</span>
-                      </div>
-                    )}
                   </div>
 
-                  <div className="space-y-2 border-b border-[#2c2f42] pb-4 max-h-[160px] overflow-y-auto">
-                    {activeOrder.items?.map((orderItem) => (
-                      <div key={orderItem.id} className="flex justify-between text-xs py-1">
-                        <span className="text-gray-300">
-                          <strong className="text-amber-500">{orderItem.quantity}x</strong> {orderItem.menu_item_name}
-                        </span>
-                        <span className="text-gray-400">
-                          {menuData.currency || '₹'}{(parseFloat(orderItem.price) * orderItem.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
+                  {/* Multi-Round Items Breakdown */}
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                    {(() => {
+                      const grouped = (activeOrder.items || []).reduce((acc, it) => {
+                        const r = it.round || 1;
+                        if (!acc[r]) acc[r] = [];
+                        acc[r].push(it);
+                        return acc;
+                      }, {});
+                      const roundKeys = Object.keys(grouped).sort((a, b) => Number(a) - Number(b));
+
+                      return roundKeys.map((roundNum) => {
+                        const roundItems = grouped[roundNum];
+                        const allServed = roundItems.every((i) => i.status === 'served');
+                        const anyPreparing = roundItems.some((i) => i.status === 'preparing');
+                        const anyPending = roundItems.some((i) => i.status === 'pending');
+
+                        let roundBadge = { label: 'In Kitchen', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+                        if (allServed) {
+                          roundBadge = { label: 'Served', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+                        } else if (anyPreparing) {
+                          roundBadge = { label: 'Preparing', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+                        } else if (anyPending) {
+                          roundBadge = { label: 'Queued', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+                        }
+
+                        return (
+                          <div key={roundNum} className="bg-[#1d1f2b] border border-[#2c2f42] rounded-xl p-3 space-y-2">
+                            <div className="flex justify-between items-center pb-1.5 border-b border-[#262837]">
+                              <span className="text-xs font-extrabold text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+                                Round {roundNum}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roundBadge.color}`}>
+                                {roundBadge.label}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              {roundItems.map((it) => (
+                                <div key={it.id} className="flex justify-between text-xs py-0.5">
+                                  <span className="text-gray-300">
+                                    <strong className="text-amber-400">{it.quantity}x</strong> {it.menu_item_name}
+                                    {it.status === 'cancelled' && <span className="ml-1 text-[10px] text-red-400">(Cancelled)</span>}
+                                  </span>
+                                  <span className="text-gray-400 font-medium">
+                                    {menuData.currency || '₹'}{(parseFloat(it.price) * it.quantity).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
 
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-sm font-bold text-gray-300">Amount Paid / Due</span>
-                    <span className="text-lg font-bold text-amber-500 font-heading">
+                  {/* Consolidated Bill Total */}
+                  <div className="bg-[#1d1f2b] border border-[#2c2f42] p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                      <span className="text-xs font-bold text-gray-300 block">Total Bill Amount Due</span>
+                      <span className="text-[10px] text-gray-500">Includes all rounds on this table</span>
+                    </div>
+                    <span className="text-xl font-black text-amber-400 font-heading">
                       {menuData.currency || '₹'}{parseFloat(activeOrder.total_price).toFixed(2)}
                     </span>
                   </div>
 
+                  {/* Order More Food Action */}
+                  <button
+                    onClick={() => {
+                      setIsCartOpen(false);
+                    }}
+                    className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 text-[#0f1015] font-extrabold rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-lg text-xs"
+                  >
+                    <span>➕ Order More Food / Drinks</span>
+                  </button>
+
+                  {/* Cancel Pending Order if applicable */}
                   {activeOrder.status === 'pending' && (
                     <button
                       onClick={handleCancelOrder}
                       disabled={cancellingOrder}
-                      className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:text-red-300 rounded-xl text-xs font-bold transition mt-4 flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                      {cancellingOrder ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Cancelling Order...
-                        </>
-                      ) : (
-                        'Cancel Order'
-                      )}
+                      {cancellingOrder ? 'Cancelling...' : 'Cancel Pending Items'}
                     </button>
                   )}
 
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem(`active_order_token_${restaurantId}`);
-                      setActiveOrderToken(null);
-                      setActiveOrder(null);
-                    }}
-                    className="w-full py-3 bg-[#1d1f2b] hover:bg-[#252839] border border-[#2c2f42] text-gray-300 hover:text-white rounded-xl text-xs font-bold transition mt-2"
-                  >
-                    Place Another Order
-                  </button>
+                  {/* Start New Session if Completed or Cancelled */}
+                  {(activeOrder.status === 'completed' || activeOrder.status === 'cancelled') && (
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem(`active_order_token_${restaurantId}`);
+                        setActiveOrderToken(null);
+                        setActiveOrder(null);
+                        setIsCartOpen(false);
+                      }}
+                      className="w-full py-3 bg-[#1d1f2b] hover:bg-[#252839] border border-[#2c2f42] text-gray-300 hover:text-white rounded-xl text-xs font-bold transition"
+                    >
+                      Start New Table Session
+                    </button>
+                  )}
                 </div>
               ) : (
-                /* CART CHECKOUT STATE */
-                <div className="space-y-6">
+                /* CART CHECKOUT STATE (New Round or First Order) */
+                <div className="space-y-5">
                   {orderError && (
                     <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-2.5 rounded-xl text-center">
                       {orderError}
                     </div>
                   )}
 
-                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                  {activeOrder && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-xs text-amber-400 flex items-center justify-between">
+                      <span>Adding to active <strong>Table {activeOrder.table_number}</strong></span>
+                      <span className="font-bold bg-amber-500/20 px-2 py-0.5 rounded-md">Round {(activeOrder.rounds_count || 1) + 1}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                     {Object.values(cart).map(({ item, quantity }) => (
                       <div key={item.id} className="bg-[#1d1f2b] border border-[#2c2f42] p-3 rounded-2xl flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -836,13 +997,13 @@ const PublicMenuPage = () => {
                   <form onSubmit={handlePlaceOrder} className="space-y-4">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        Table Code
+                        Table Number
                       </label>
-                      {tableParam ? (
+                      {tableParam || activeOrder?.table_number ? (
                         <div className="px-4 py-3 bg-[#1d1f2b] border border-amber-500/20 rounded-xl text-sm text-amber-500 font-extrabold flex items-center justify-between">
-                          <span>Table {tableParam}</span>
+                          <span>Table {tableParam || activeOrder?.table_number}</span>
                           <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">
-                            Locked via QR
+                            {tableParam ? 'Locked via QR' : 'Active Session'}
                           </span>
                         </div>
                       ) : (
@@ -858,21 +1019,25 @@ const PublicMenuPage = () => {
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        Your Name (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter your name"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        className="w-full px-4 py-3 bg-[#1d1f2b] border border-[#2c2f42] focus:border-amber-500 rounded-xl text-sm text-gray-200 outline-none transition"
-                      />
-                    </div>
+                    {!activeOrder && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                          Your Name (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter your name"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          className="w-full px-4 py-3 bg-[#1d1f2b] border border-[#2c2f42] focus:border-amber-500 rounded-xl text-sm text-gray-200 outline-none transition"
+                        />
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-sm font-bold text-gray-300">Total Price</span>
+                      <span className="text-xs font-bold text-gray-300">
+                        {activeOrder ? 'Round Total' : 'Total Price'}
+                      </span>
                       <span className="text-lg font-bold text-amber-500 font-heading">
                         {menuData.currency || '₹'}
                         {Object.values(cart).reduce((a, b) => a + b.quantity * parseFloat(b.item.price), 0).toFixed(2)}
@@ -892,6 +1057,8 @@ const PublicMenuPage = () => {
                           </svg>
                           Placing Order...
                         </>
+                      ) : activeOrder ? (
+                        `Confirm & Add to Table (Round ${(activeOrder.rounds_count || 1) + 1})`
                       ) : (
                         'Confirm & Place Order'
                       )}
@@ -899,6 +1066,77 @@ const PublicMenuPage = () => {
                   </form>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Celebratory Order Completed & Paid Modal */}
+        {completedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+            <div className="bg-[#161720] border border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl space-y-6 relative overflow-hidden">
+              {/* Glow Accent */}
+              <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+              {/* Animated Celebration Icon */}
+              <div className="h-16 w-16 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto text-3xl shadow-lg animate-bounce">
+                🎉
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black font-heading text-white">
+                  Order Completed!
+                </h3>
+                <p className="text-xs text-gray-300">
+                  Thank you for dining with us at <strong className="text-amber-400">{menuData?.restaurant?.name || 'our restaurant'}</strong>. We hope you enjoyed your meal!
+                </p>
+              </div>
+
+              {/* Bill Details */}
+              <div className="bg-[#1d1f2b] border border-[#2c2f42] rounded-2xl p-4 space-y-2.5 text-xs text-left">
+                <div className="flex justify-between text-gray-400">
+                  <span>Table Number</span>
+                  <span className="font-extrabold text-amber-400">Table {completedOrder.table_number}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Order ID</span>
+                  <span className="font-bold text-gray-200">#{completedOrder.id}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Items Ordered</span>
+                  <span className="font-bold text-gray-200">{completedOrder.items?.length || 0} items</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-[#262837]">
+                  <span className="font-bold text-gray-300">Total Bill Settled</span>
+                  <span className="text-lg font-black text-emerald-400 font-heading">
+                    {menuData?.currency || '₹'}{parseFloat(completedOrder.total_price).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Auto Redirect Progress Bar */}
+              <div className="space-y-2">
+                <div className="w-full bg-[#1d1f2b] rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 h-full transition-all duration-1000 ease-linear"
+                    style={{ width: `${((completionCountdown ?? 5) / 5) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Returning to menu in <span className="font-bold text-amber-400">{completionCountdown}s</span>...
+                </p>
+              </div>
+
+              {/* Dismiss / Return Button */}
+              <button
+                onClick={() => {
+                  setCompletedOrder(null);
+                  setCompletionCountdown(null);
+                  setCart({});
+                }}
+                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-[#0f1015] font-extrabold rounded-xl transition duration-200 shadow-lg text-sm"
+              >
+                Back to Menu / Start New Order
+              </button>
             </div>
           </div>
         )}

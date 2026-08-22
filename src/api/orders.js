@@ -25,6 +25,18 @@ export const ordersApi = {
     return response.data;
   },
 
+  // Owner action: Update status of an entire round within an order
+  updateOrderRoundStatus: async (orderId, round, status) => {
+    const response = await api.patch(`/api/orders/${orderId}/update_round_status/`, { round, status });
+    return response.data;
+  },
+
+  // Owner action: Update status of a specific item within an order
+  updateOrderItemStatus: async (orderId, itemId, status) => {
+    const response = await api.patch(`/api/orders/${orderId}/update_item_status/`, { item_id: itemId, status });
+    return response.data;
+  },
+
   // Public action: Cancel order (only allowed if pending)
   cancelOrder: async (token) => {
     const response = await api.post(`/api/orders/cancel/`, { token });

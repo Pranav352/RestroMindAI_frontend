@@ -47,6 +47,17 @@ const OrdersPage = () => {
     }
   };
 
+  const handleUpdateRoundStatus = async (orderId, roundNumber, status) => {
+    try {
+      setError('');
+      await ordersApi.updateOrderRoundStatus(orderId, roundNumber, status);
+      fetchOrders();
+    } catch (err) {
+      console.error('Error updating round status:', err);
+      setError('Failed to update round status. Please try again.');
+    }
+  };
+
   const tabs = [
     { id: 'all', name: 'All Orders' },
     { id: 'pending', name: 'Pending' },
@@ -108,7 +119,7 @@ const OrdersPage = () => {
             Live Orders Board
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Track and dispatch customer orders per table in real-time.
+            Track and dispatch multi-round customer orders per table in real-time.
           </p>
         </div>
 
@@ -204,112 +215,173 @@ const OrdersPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-[#161720] border border-[#262837] hover:border-[#35384e] p-6 rounded-2xl shadow-xl flex flex-col justify-between transition duration-300 relative"
-            >
-              {/* Order Card Top Info */}
-              <div className="space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-200">Order #{order.id}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">Placed at {formatTime(order.created_at)}</p>
+          {filteredOrders.map((order) => {
+            // Group items by round
+            const groupedRounds = (order.items || []).reduce((acc, item) => {
+              const r = item.round || 1;
+              if (!acc[r]) acc[r] = [];
+              acc[r].push(item);
+              return acc;
+            }, {});
+            const roundKeys = Object.keys(groupedRounds).sort((a, b) => Number(a) - Number(b));
+
+            return (
+              <div
+                key={order.id}
+                className="bg-[#161720] border border-[#262837] hover:border-[#35384e] p-6 rounded-2xl shadow-xl flex flex-col justify-between transition duration-300 relative"
+              >
+                {/* Order Card Top Info */}
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-200">Order #{order.id}</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">Placed at {formatTime(order.created_at)}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className="px-3.5 py-1.5 bg-amber-500/10 text-amber-400 text-sm font-black rounded-xl border border-amber-500/15">
+                        Table {order.table_number || 'N/A'}
+                      </span>
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${getStatusBadgeClass(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <span className="px-3.5 py-1.5 bg-amber-500/10 text-amber-400 text-sm font-black rounded-xl border border-amber-500/15">
-                      T - {order.table_number || 'N/A'}
-                    </span>
-                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${getStatusBadgeClass(order.status)}`}>
-                      {order.status}
-                    </span>
+
+                  <div className="border-t border-[#262837]/50 pt-2.5 flex justify-between items-center text-xs">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Guest</p>
+                      <p className="text-xs text-gray-200 font-semibold">{order.customer_name || 'Walk-in Guest'}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold bg-[#1e202e] text-amber-400 px-2 py-0.5 rounded-full border border-[#2c2f42]">
+                        {roundKeys.length} {roundKeys.length === 1 ? 'Round' : 'Rounds'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Multi-Round Items Display */}
+                  <div className="pt-2 space-y-3 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
+                    {roundKeys.map((roundNum) => {
+                      const roundItems = groupedRounds[roundNum];
+                      const allServed = roundItems.every(i => i.status === 'served');
+                      const anyPreparing = roundItems.some(i => i.status === 'preparing');
+                      const anyPending = roundItems.some(i => i.status === 'pending');
+
+                      return (
+                        <div key={roundNum} className="bg-[#12131a] border border-[#232635] rounded-xl p-3 space-y-2">
+                          <div className="flex justify-between items-center pb-1.5 border-b border-[#1e202e]">
+                            <span className="text-[11px] font-extrabold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                              Round {roundNum}
+                            </span>
+                            
+                            {/* Round Action Button in Kitchen */}
+                            {isSubscriptionActive && order.status !== 'completed' && order.status !== 'cancelled' && (
+                              <div>
+                                {allServed ? (
+                                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                    Served ✓
+                                  </span>
+                                ) : anyPreparing ? (
+                                  <button
+                                    onClick={() => handleUpdateRoundStatus(order.id, roundNum, 'served')}
+                                    className="text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-[#0f1015] px-2 py-0.5 rounded transition"
+                                  >
+                                    Mark R{roundNum} Served
+                                  </button>
+                                ) : anyPending ? (
+                                  <button
+                                    onClick={() => handleUpdateRoundStatus(order.id, roundNum, 'preparing')}
+                                    className="text-[10px] font-bold bg-blue-500 hover:bg-blue-600 text-[#0f1015] px-2 py-0.5 rounded transition"
+                                  >
+                                    Cook R{roundNum}
+                                  </button>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            {roundItems.map((item) => (
+                              <div key={item.id} className="flex justify-between items-center text-xs">
+                                <span className="text-gray-300">
+                                  <strong className="text-amber-400">{item.quantity}x</strong> {item.menu_item_name}
+                                  {item.status === 'cancelled' && <span className="ml-1 text-[10px] text-red-400">(Cancelled)</span>}
+                                </span>
+                                <span className="text-gray-400">
+                                  ₹{(parseFloat(item.price) * item.quantity).toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="border-t border-[#262837]/50 pt-3">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Guest</p>
-                  <p className="text-xs text-gray-200 font-semibold">{order.customer_name || 'Anonymous Guest'}</p>
-                </div>
-
-                {/* Items List */}
-                <div className="pt-2 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ordered Items</p>
-                  <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
-                    {order.items?.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center text-xs">
-                        <span className="text-gray-300">
-                          <strong className="text-amber-500">{item.quantity}x</strong> {item.menu_item_name}
-                        </span>
-                        <span className="text-gray-400">
-                          ₹{(parseFloat(item.price) * item.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
+                {/* Order Card Bottom Info & Actions */}
+                <div className="mt-6 pt-4 border-t border-[#262837]/50">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-xs font-bold text-gray-400">Total Table Bill</span>
+                    <span className="text-lg font-bold text-amber-500 font-heading">
+                      ₹{parseFloat(order.total_price).toFixed(2)}
+                    </span>
                   </div>
+
+                  {/* Dynamic Actions based on status */}
+                  {isSubscriptionActive ? (
+                    <div className="flex gap-2">
+                      {order.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleUpdateStatus(order.id, 'preparing')}
+                            className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-[#0f1015] text-xs font-bold rounded-xl transition"
+                          >
+                            Accept Order
+                          </button>
+                          <button
+                            onClick={() => handleUpdateStatus(order.id, 'cancelled')}
+                            className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition"
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+
+                      {order.status === 'preparing' && (
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'served')}
+                          className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#0f1015] text-xs font-bold rounded-xl transition"
+                        >
+                          Mark All Items Served
+                        </button>
+                      )}
+
+                      {order.status === 'served' && (
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'completed')}
+                          className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-[#0f1015] text-xs font-extrabold rounded-xl transition shadow-lg"
+                        >
+                          Settle Bill & Complete
+                        </button>
+                      )}
+
+                      {['completed', 'cancelled'].includes(order.status) && (
+                        <div className="w-full text-center py-2 bg-[#1d1f2b] rounded-xl text-[10px] text-gray-500 font-semibold uppercase tracking-wide">
+                          Order Settled & Closed
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-full text-center py-2 bg-[#1d1f2b] rounded-xl text-[10px] text-red-400/75 border border-red-500/10 font-semibold uppercase tracking-wide">
+                      Read-only (Trial Ended)
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Order Card Bottom Info & Actions */}
-              <div className="mt-6 pt-4 border-t border-[#262837]/50">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-bold text-gray-400">Total Price</span>
-                  <span className="text-base font-bold text-amber-500 font-heading">
-                    ₹{parseFloat(order.total_price).toFixed(2)}
-                  </span>
-                </div>
-
-                {/* Dynamic Actions based on status */}
-                {isSubscriptionActive ? (
-                  <div className="flex gap-2">
-                    {order.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleUpdateStatus(order.id, 'preparing')}
-                          className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-[#0f1015] text-xs font-bold rounded-xl transition"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(order.id, 'cancelled')}
-                          className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition"
-                        >
-                          Decline
-                        </button>
-                      </>
-                    )}
-
-                    {order.status === 'preparing' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'served')}
-                        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#0f1015] text-xs font-bold rounded-xl transition"
-                      >
-                        Mark as Served
-                      </button>
-                    )}
-
-                    {order.status === 'served' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'completed')}
-                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-[#0f1015] text-xs font-bold rounded-xl transition"
-                      >
-                        Complete Order
-                      </button>
-                    )}
-
-                    {['completed', 'cancelled'].includes(order.status) && (
-                      <div className="w-full text-center py-2 bg-[#1d1f2b] rounded-xl text-[10px] text-gray-500 font-semibold uppercase tracking-wide">
-                        Order Processed
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full text-center py-2 bg-[#1d1f2b] rounded-xl text-[10px] text-red-400/75 border border-red-500/10 font-semibold uppercase tracking-wide">
-                    Read-only (Trial Ended)
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
