@@ -251,6 +251,12 @@ const PublicMenuPage = () => {
       return;
     }
 
+    const finalCustomerName = (customerName || activeOrder?.customer_name || '').trim();
+    if (!finalCustomerName) {
+      setOrderError('Please enter your name to place the order.');
+      return;
+    }
+
     const itemsArray = Object.values(cart).map((c) => ({
       menu_item: c.item.id,
       quantity: c.quantity,
@@ -268,7 +274,7 @@ const PublicMenuPage = () => {
       const payload = {
         restaurant: parseInt(restaurantId, 10),
         table_number: parseInt(finalTable, 10),
-        customer_name: customerName || activeOrder?.customer_name || '',
+        customer_name: finalCustomerName,
         items: itemsArray,
       };
 
@@ -1160,14 +1166,15 @@ const PublicMenuPage = () => {
                     {!activeOrder && (
                       <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                          Your Name (Optional)
+                          Your Name <span className="text-amber-400 font-extrabold">*</span>
                         </label>
                         <input
                           type="text"
+                          required
                           placeholder="Enter your name"
                           value={customerName}
                           onChange={(e) => setCustomerName(e.target.value)}
-                          className="w-full px-4 py-3 bg-[#1d1f2b] border border-[#2c2f42] focus:border-amber-500 rounded-xl text-sm text-gray-200 outline-none transition"
+                          className="w-full px-4 py-3 bg-[#1d1f2b] border border-[#2c2f42] focus:border-amber-500 rounded-xl text-sm text-gray-200 outline-none transition placeholder:text-gray-500"
                         />
                       </div>
                     )}

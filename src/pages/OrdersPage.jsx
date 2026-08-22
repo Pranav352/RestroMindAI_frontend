@@ -249,8 +249,8 @@ const OrdersPage = () => {
 
                   <div className="border-t border-[#262837]/50 pt-2.5 flex justify-between items-center text-xs">
                     <div>
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Guest</p>
-                      <p className="text-xs text-gray-200 font-semibold">{order.customer_name || 'Walk-in Guest'}</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Customer</p>
+                      <p className="text-xs text-gray-200 font-semibold">{order.customer_name || 'Guest'}</p>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-bold bg-[#1e202e] text-amber-400 px-2 py-0.5 rounded-full border border-[#2c2f42]">
