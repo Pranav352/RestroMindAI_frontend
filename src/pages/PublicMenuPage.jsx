@@ -51,10 +51,42 @@ const PublicMenuPage = () => {
   const [activeOrder, setActiveOrder] = useState(null);
   const [completedOrder, setCompletedOrder] = useState(null);
   const [completionCountdown, setCompletionCountdown] = useState(null);
+  const [tableOccupiedInfo, setTableOccupiedInfo] = useState(null);
 
   const categoryRefs = useRef({});
   const pillsContainerRef = useRef(null);
   const stickyHeaderRef = useRef(null);
+
+  // Check if current table has an active session from another device
+  const checkTableOccupancy = async (tableNum) => {
+    if (!tableNum || activeOrderToken) {
+      setTableOccupiedInfo(null);
+      return;
+    }
+    try {
+      const data = await ordersApi.checkTableStatus(restaurantId, tableNum, activeOrderToken);
+      if (data.is_occupied && !data.is_table_host) {
+        setTableOccupiedInfo(data);
+      } else {
+        setTableOccupiedInfo(null);
+      }
+    } catch (err) {
+      console.error('Error checking table status:', err);
+    }
+  };
+
+  useEffect(() => {
+    const currentTable = tableParam || tableNumber;
+    if (currentTable && !activeOrderToken) {
+      checkTableOccupancy(currentTable);
+      const interval = setInterval(() => {
+        checkTableOccupancy(currentTable);
+      }, 6000);
+      return () => clearInterval(interval);
+    } else {
+      setTableOccupiedInfo(null);
+    }
+  }, [restaurantId, tableParam, tableNumber, activeOrderToken]);
 
   // Poll order status if there is an active order
   const fetchActiveOrderStatus = async (token) => {
@@ -109,6 +141,11 @@ const PublicMenuPage = () => {
 
   // Cart operations
   const addToCart = (item) => {
+    if (tableOccupiedInfo && !activeOrder) {
+      alert(`Table ${tableOccupiedInfo.table_number} currently has an active order. Extra items can be ordered from the primary table device.`);
+      return;
+    }
+
     setCart((prev) => {
       const current = prev[item.id] || { item, quantity: 0 };
       return {
@@ -643,7 +680,7 @@ const PublicMenuPage = () => {
         </div>
 
         {/* Active Order Sticky Top status bar */}
-        {activeOrder && (
+        {activeOrder ? (
           <div className="sticky top-[110px] z-20 bg-gradient-to-r from-amber-500 to-orange-600 text-[#0f1015] px-5 py-2.5 flex items-center justify-between text-xs font-black shadow-lg">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
@@ -666,6 +703,26 @@ const PublicMenuPage = () => {
                 {menuData.currency || '₹'}{parseFloat(activeOrder.total_price).toFixed(2)}
               </span>
             </button>
+          </div>
+        ) : tableOccupiedInfo && (
+          <div className="sticky top-[110px] z-20 bg-[#161720]/95 border-b border-amber-500/30 backdrop-blur-md px-5 py-2.5 flex items-center justify-between text-xs shadow-xl">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <div>
+                <span className="font-extrabold text-amber-400">
+                  Table {tableOccupiedInfo.table_number} is Occupied (View-Only)
+                </span>
+                <span className="text-[10px] text-gray-400 block">
+                  Active dining session in progress. Managed by primary device.
+                </span>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Active Table
+            </span>
           </div>
         )}
 
@@ -698,7 +755,7 @@ const PublicMenuPage = () => {
               </span>
             </button>
           </div>
-        ) : activeOrder && (
+        ) : activeOrder ? (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-40">
             <button
               onClick={() => {
@@ -726,6 +783,21 @@ const PublicMenuPage = () => {
                 </span>
               </div>
             </button>
+          </div>
+        ) : tableOccupiedInfo && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-40">
+            <div className="w-full bg-[#161720]/95 backdrop-blur-md border border-amber-500/30 text-white font-semibold py-3 px-5 rounded-2xl shadow-2xl flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="text-base">🔒</span>
+                <div className="text-left">
+                  <p className="text-xs text-gray-200 font-bold">Table {tableOccupiedInfo.table_number} Active Session</p>
+                  <p className="text-[10px] text-amber-400">Browse Menu Freely</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold bg-[#1d1f2b] text-gray-400 px-2.5 py-1 rounded-lg border border-[#2c2f42] uppercase">
+                View-Only
+              </span>
+            </div>
           </div>
         )}
 
