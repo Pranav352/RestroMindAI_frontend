@@ -2,16 +2,18 @@ import React from 'react';
 import { getMediaUrl } from '../../config/env';
 
 const MenuItemCard = ({ item, openEditItemModal, handleDeleteItem, toggleAvailability, currency = '₹', readOnly = false }) => {
+  const [imgError, setImgError] = React.useState(false);
   const imageUrl = getMediaUrl(item.image);
   
   return (
     <div className="flex gap-4 p-4 rounded-xl bg-[#1e202e] border border-[#2c2f42] hover:border-[#383c54] transition duration-200">
       {/* Image */}
       <div className="w-20 h-20 rounded-lg bg-[#161720] overflow-hidden flex items-center justify-center shrink-0 border border-[#2c2f42]">
-        {item.image ? (
+        {item.image && !imgError ? (
           <img
             src={imageUrl}
             alt={item.name}
+            onError={() => setImgError(true)}
             className="w-full h-full object-cover"
           />
         ) : (

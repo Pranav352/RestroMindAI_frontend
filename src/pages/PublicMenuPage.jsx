@@ -424,6 +424,7 @@ const PublicMenuPage = () => {
                               src={getMediaUrl(item.image)}
                               alt={item.name}
                               className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
                             <svg className="h-8 w-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -517,6 +518,7 @@ const PublicMenuPage = () => {
                                 src={getMediaUrl(item.image)}
                                 alt={item.name}
                                 className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             ) : (
                               <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
