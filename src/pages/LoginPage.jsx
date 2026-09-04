@@ -63,7 +63,7 @@ const LoginPage = () => {
       const meResponse = await api.get('/api/auth/me/');
       const userData = meResponse.data;
 
-      login({ access, refresh }, userData);
+      await login({ access, refresh }, userData);
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);

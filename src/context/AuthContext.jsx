@@ -64,14 +64,21 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = (tokens, userData) => {
+  const login = async (tokens, userData) => {
     localStorage.setItem('access_token', tokens.access);
     localStorage.setItem('refresh_token', tokens.refresh);
     if (userData) {
       localStorage.setItem('user_info', JSON.stringify(userData));
       setUser(userData);
       if (userData.role === 'owner') {
-        fetchCurrentUser(); // To fetch and set tenant ID
+        try {
+          const restResponse = await api.get('/api/restaurants/');
+          if (restResponse.data && restResponse.data.length > 0) {
+            setActiveTenantId(restResponse.data[0].id);
+          }
+        } catch (restError) {
+          console.error('Failed to fetch owner restaurants on login:', restError);
+        }
       }
     }
   };
