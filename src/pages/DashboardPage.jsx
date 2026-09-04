@@ -330,7 +330,7 @@ const AdminDashboard = () => {
   );
 };
 
-const OwnerDashboard = ({ user, refreshUser }) => {
+const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
   const [restaurant, setRestaurant] = useState(null);
   const [stats, setStats] = useState({
     categoriesCount: 0,
@@ -426,7 +426,7 @@ const OwnerDashboard = ({ user, refreshUser }) => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [activeTenantId]);
 
 
   if (loading) {
@@ -809,13 +809,13 @@ const OwnerDashboard = ({ user, refreshUser }) => {
 };
 
 const DashboardPage = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, activeTenantId } = useAuth();
 
   if (user?.role === 'admin') {
     return <AdminDashboard />;
   }
 
-  return <OwnerDashboard user={user} refreshUser={refreshUser} />;
+  return <OwnerDashboard user={user} refreshUser={refreshUser} activeTenantId={activeTenantId} />;
 };
 
 export default DashboardPage;
