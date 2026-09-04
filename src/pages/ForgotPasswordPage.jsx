@@ -5,44 +5,42 @@ import AuthLayout from '../layouts/AuthLayout';
 import PasswordCriteriaChecklist from '../components/PasswordCriteriaChecklist';
 import { evaluatePasswordCriteria, PIN_MIN_LENGTH, PIN_MAX_LENGTH } from '../utils/passwordUtils';
 
-const SignupPage = () => {
+const ForgotPasswordPage = () => {
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    password: '',
-    confirmPassword: '',
-    recoveryPin: '',
-    plan: 'free_trial',
+    pin: '',
+    newPassword: '',
+    confirmNewPassword: '',
   });
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
-  const criteria = evaluatePasswordCriteria(formData.password);
+  const criteria = evaluatePasswordCriteria(formData.newPassword);
 
   const validate = () => {
     const tempErrors = {};
-    if (!formData.name.trim()) tempErrors.name = 'Full Name is required';
     if (!formData.email.trim()) {
       tempErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       tempErrors.email = 'Please enter a valid email address';
     }
-    if (!formData.recoveryPin.trim()) {
-      tempErrors.recoveryPin = `${PIN_MIN_LENGTH}-Digit PIN is required`;
-    } else if (!new RegExp(`^\\d{${PIN_MIN_LENGTH},${PIN_MAX_LENGTH}}$`).test(formData.recoveryPin.trim())) {
-      tempErrors.recoveryPin = `PIN must be between ${PIN_MIN_LENGTH} and ${PIN_MAX_LENGTH} digits`;
+    if (!formData.pin.trim()) {
+      tempErrors.pin = 'Security PIN is required';
+    } else if (!new RegExp(`^\\d{${PIN_MIN_LENGTH},${PIN_MAX_LENGTH}}$`).test(formData.pin.trim())) {
+      tempErrors.pin = `PIN must be between ${PIN_MIN_LENGTH} and ${PIN_MAX_LENGTH} digits`;
     }
-    if (!formData.password) {
-      tempErrors.password = 'Password is required';
+    if (!formData.newPassword) {
+      tempErrors.newPassword = 'New password is required';
     } else if (!criteria.isAllValid) {
-      tempErrors.password = 'Password does not meet all complexity requirements.';
+      tempErrors.newPassword = 'Password does not meet all complexity requirements.';
     }
-    if (formData.password !== formData.confirmPassword) {
-      tempErrors.confirmPassword = 'Passwords do not match';
+    if (formData.newPassword !== formData.confirmNewPassword) {
+      tempErrors.confirmNewPassword = 'Passwords do not match';
     }
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
@@ -59,97 +57,86 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError('');
+    setSuccessMessage('');
     if (!validate()) return;
 
     setIsSubmitting(true);
     try {
-      await api.post('/api/auth/register/', {
-        first_name: formData.name.trim(),
+      const response = await api.post('/api/auth/reset-password-with-pin/', {
         email: formData.email.trim(),
-        password: formData.password,
-        role: 'owner',
-        plan: formData.plan,
-        recovery_pin: formData.recoveryPin.trim(),
+        pin: formData.pin.trim(),
+        new_password: formData.newPassword,
       });
-      navigate('/login?registered=true');
+
+      setSuccessMessage(response.data.message || 'Password has been reset successfully!');
+      setTimeout(() => {
+        navigate('/login');
+      }, 2500);
     } catch (err) {
-      console.error('Signup error:', err);
+      console.error('Password reset error:', err);
       if (err.response && err.response.data) {
         if (typeof err.response.data === 'object') {
           const messages = Object.entries(err.response.data)
             .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(' ') : val}`)
             .join(' | ');
-          setApiError(messages || 'Registration failed. Please review your details.');
+          setApiError(messages || 'Password reset failed. Please check your credentials.');
         } else {
-          setApiError(err.response.data.error || 'Registration failed.');
+          setApiError(err.response.data.error || 'Password reset failed.');
         }
       } else {
-        setApiError('Unable to connect to server. Please check your connection.');
+        setApiError('Unable to connect to server.');
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Signup Hero Custom Content
+  // Forgot Password Left Hero Custom Instructions Box
   const heroCustomContent = (
-    <div className="space-y-5">
-      <div className="space-y-3.5">
-        <div className="flex items-start gap-3">
-          <div className="h-6 w-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-white">Instant Account Activation</h4>
-            <p className="text-xs text-gray-400 mt-0.5">No waiting for manual admin approval lockouts.</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <div className="h-6 w-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-white">PIN Recovery Protection</h4>
-            <p className="text-xs text-gray-400 mt-0.5">Set a secret 4-digit PIN for self-service password recovery.</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <div className="h-6 w-6 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 mt-0.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-white">Unlimited Digital Menu & QR</h4>
-            <p className="text-xs text-gray-400 mt-0.5">Build categories, uploaded dish photos, and print QR codes.</p>
-          </div>
-        </div>
+    <div className="p-5 rounded-2xl bg-[#131522]/80 border border-[#23273b] space-y-3.5 backdrop-blur-md">
+      <div className="flex items-center gap-2.5 text-amber-400 font-semibold text-sm">
+        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>How PIN Recovery Works</span>
       </div>
-
-      <div className="p-4 rounded-2xl bg-[#131522]/80 border border-[#23273b] backdrop-blur-md">
-        <p className="text-xs text-gray-400 italic">
-          "RestroMind AI enabled us to launch digital ordering across 20 tables in under 15 minutes!"
-        </p>
-        <p className="text-xs font-bold text-amber-400 mt-2">— Kitchen Director, Spice Haven</p>
-      </div>
+      <ul className="space-y-2 text-xs text-gray-300">
+        <li className="flex items-center gap-2.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+          <span>Enter your restaurant account email address.</span>
+        </li>
+        <li className="flex items-center gap-2.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+          <span>Enter the 4 to 6-digit Secret PIN set during signup.</span>
+        </li>
+        <li className="flex items-center gap-2.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+          <span>Type your new password to regain instant access.</span>
+        </li>
+      </ul>
     </div>
   );
 
   return (
     <AuthLayout
-      heroTitle="Register Your"
-      heroHighlight="Restaurant Owner Account."
-      heroSubtitle="Get started with menu management, table QR generation, and real-time kitchen display."
+      heroTitle="Self-Service PIN"
+      heroHighlight="Recovery."
+      heroSubtitle="No need to wait for email links or admin support. Reset your account password instantly using your registered Secret Security PIN."
       heroCustomContent={heroCustomContent}
-      cardTitle="Create Owner Account"
-      cardSubtitle="Join RestroMind AI and set up your restaurant profile."
+      cardTitle="Reset Password"
+      cardSubtitle="Enter your registered Email & Secret PIN to choose a new password."
     >
+      {successMessage && (
+        <div className="mb-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 p-3.5 rounded-2xl text-sm flex items-start gap-3 backdrop-blur-md">
+          <svg className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="font-semibold text-emerald-300">{successMessage}</p>
+            <p className="text-xs text-emerald-400/80 mt-0.5">Redirecting to login page...</p>
+          </div>
+        </div>
+      )}
 
       {apiError && (
         <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-300 p-3.5 rounded-2xl text-sm flex items-start gap-3 backdrop-blur-md">
@@ -161,31 +148,6 @@ const SignupPage = () => {
       )}
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* Full Name */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-            Full Name
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#191b2b] border ${
-                errors.name ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
-              } text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 text-sm`}
-              placeholder="John Doe"
-            />
-          </div>
-          {errors.name && <p className="mt-1 text-[11px] text-red-400 font-medium">{errors.name}</p>}
-        </div>
-
         {/* Email Address */}
         <div>
           <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
@@ -211,13 +173,13 @@ const SignupPage = () => {
           {errors.email && <p className="mt-1 text-[11px] text-red-400 font-medium">{errors.email}</p>}
         </div>
 
-        {/* Secret Security PIN */}
+        {/* Secret PIN */}
         <div>
           <div className="flex justify-between items-center mb-1.5">
             <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
-              Secret Security PIN
+              Secret PIN
             </label>
-            <span className="text-[10px] text-amber-400 font-medium">For Password Recovery</span>
+            <span className="text-[10px] text-amber-400 font-medium">Set at signup</span>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -227,23 +189,23 @@ const SignupPage = () => {
             </div>
             <input
               type="password"
-              name="recoveryPin"
+              name="pin"
               maxLength={PIN_MAX_LENGTH}
-              value={formData.recoveryPin}
+              value={formData.pin}
               onChange={handleChange}
               className={`w-full pl-10 pr-3.5 py-3 rounded-xl bg-[#191b2b] border ${
-                errors.recoveryPin ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
+                errors.pin ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
               } text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 text-sm`}
-              placeholder={`${PIN_MIN_LENGTH}-${PIN_MAX_LENGTH} Digit PIN (e.g. 4829)`}
+              placeholder={`${PIN_MIN_LENGTH} to ${PIN_MAX_LENGTH}-Digit PIN`}
             />
           </div>
-          {errors.recoveryPin && <p className="mt-1 text-[11px] text-red-400 font-medium">{errors.recoveryPin}</p>}
+          {errors.pin && <p className="mt-1 text-[11px] text-red-400 font-medium">{errors.pin}</p>}
         </div>
 
-        {/* Password */}
+        {/* New Password */}
         <div>
           <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-            Password
+            New Password
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -252,21 +214,21 @@ const SignupPage = () => {
               </svg>
             </div>
             <input
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              value={formData.password}
+              type={showNewPassword ? 'text' : 'password'}
+              name="newPassword"
+              value={formData.newPassword}
               onChange={handleChange}
               className={`w-full pl-10 pr-10 py-3 rounded-xl bg-[#191b2b] border ${
-                errors.password ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
+                errors.newPassword ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
               } text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 text-sm`}
-              placeholder="Enter strong password"
+              placeholder="Enter new password"
             />
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setShowNewPassword(!showNewPassword)}
               className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition duration-150 cursor-pointer"
             >
-              {showPassword ? (
+              {showNewPassword ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.025 10.025 0 012.122-.363c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" />
                 </svg>
@@ -279,14 +241,14 @@ const SignupPage = () => {
             </button>
           </div>
 
-          <PasswordCriteriaChecklist criteria={criteria} password={formData.password} />
-          {errors.password && <p className="mt-1.5 text-xs text-red-400 font-medium">{errors.password}</p>}
+          <PasswordCriteriaChecklist criteria={criteria} password={formData.newPassword} />
+          {errors.newPassword && <p className="mt-1.5 text-xs text-red-400 font-medium">{errors.newPassword}</p>}
         </div>
 
-        {/* Confirm Password */}
+        {/* Confirm New Password */}
         <div>
           <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-            Confirm Password
+            Confirm New Password
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -296,13 +258,13 @@ const SignupPage = () => {
             </div>
             <input
               type={showConfirmPassword ? 'text' : 'password'}
-              name="confirmPassword"
-              value={formData.confirmPassword}
+              name="confirmNewPassword"
+              value={formData.confirmNewPassword}
               onChange={handleChange}
               className={`w-full pl-10 pr-10 py-3 rounded-xl bg-[#191b2b] border ${
-                errors.confirmPassword ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
+                errors.confirmNewPassword ? 'border-red-500/70 focus:border-red-500' : 'border-[#2d3148] focus:border-amber-500'
               } text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 text-sm`}
-              placeholder="Re-enter password"
+              placeholder="Re-enter new password"
             />
             <button
               type="button"
@@ -321,25 +283,25 @@ const SignupPage = () => {
               )}
             </button>
           </div>
-          {errors.confirmPassword && (
-            <p className="mt-1 text-[11px] text-red-400 font-medium">{errors.confirmPassword}</p>
+          {errors.confirmNewPassword && (
+            <p className="mt-1 text-[11px] text-red-400 font-medium">{errors.confirmNewPassword}</p>
           )}
         </div>
 
         <div className="pt-2">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !!successMessage}
             className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl text-sm font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 shadow-[0_0_25px_rgba(245,158,11,0.3)] focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all duration-300 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? (
               <div className="flex items-center gap-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
-                <span>Creating Account...</span>
+                <span>Resetting Password...</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span>Create Account & Start Free Trial</span>
+                <span>Update Password</span>
                 <svg className="w-4 h-4 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -351,7 +313,7 @@ const SignupPage = () => {
 
       <div className="text-center mt-5 pt-4 border-t border-[#23273b]">
         <p className="text-xs text-gray-400">
-          Already have an account?{' '}
+          Remembered your password?{' '}
           <Link to="/login" className="text-amber-400 hover:text-amber-300 font-semibold transition duration-150 hover:underline">
             Sign in
           </Link>
@@ -361,4 +323,4 @@ const SignupPage = () => {
   );
 };
 
-export default SignupPage;
+export default ForgotPasswordPage;

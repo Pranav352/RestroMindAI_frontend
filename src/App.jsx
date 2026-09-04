@@ -6,6 +6,7 @@ import AdminRoute from './components/AdminRoute';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import RestaurantProfilePage from './pages/RestaurantProfilePage';
 import MenuManagementPage from './pages/MenuManagementPage';
@@ -28,7 +29,9 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/menu/:restaurantId" element={<PublicMenuPage />} />
+
 
           {/* Protected Routes */}
           <Route
