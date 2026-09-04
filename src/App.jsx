@@ -15,6 +15,8 @@ import PublicMenuPage from './pages/PublicMenuPage';
 import OrdersPage from './pages/OrdersPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRestaurantsPage from './pages/AdminRestaurantsPage';
+import OwnerSettingsPage from './pages/OwnerSettingsPage';
+import AdminSettingsPage from './pages/AdminSettingsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -48,6 +50,7 @@ function App() {
             <Route path="menu" element={<MenuManagementPage />} />
             <Route path="qr" element={<QRCodePage />} />
             <Route path="orders" element={<OrdersPage />} />
+            <Route path="settings" element={<OwnerSettingsPage />} />
             
             {/* Admin Routes */}
             <Route
@@ -63,6 +66,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminRestaurantsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/settings"
+              element={
+                <AdminRoute>
+                  <AdminSettingsPage />
                 </AdminRoute>
               }
             />

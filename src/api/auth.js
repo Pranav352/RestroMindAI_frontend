@@ -19,6 +19,35 @@ export const authApi = {
   getMe: async () => {
     const response = await api.get('/api/auth/me/');
     return response.data;
+  },
+
+  updateProfile: async (data) => {
+    const response = await api.patch('/api/auth/me/', data);
+    return response.data;
+  },
+
+  changePassword: async (currentPassword, newPassword, confirmPassword) => {
+    const response = await api.post('/api/auth/change-password/', {
+      current_password: currentPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword
+    });
+    return response.data;
+  },
+
+  getSystemSettings: async () => {
+    const response = await api.get('/api/auth/system-settings/');
+    return response.data;
+  },
+
+  updateSystemSettings: async (data) => {
+    const response = await api.patch('/api/auth/system-settings/', data);
+    return response.data;
+  },
+
+  getSystemDiagnostics: async () => {
+    const response = await api.get('/api/auth/system-diagnostics/');
+    return response.data;
   }
 };
 
