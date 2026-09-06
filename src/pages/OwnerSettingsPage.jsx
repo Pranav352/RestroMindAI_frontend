@@ -97,7 +97,8 @@ const OwnerSettingsPage = () => {
       if (s.setting_prep_buffer !== undefined) setPrepBufferTime(s.setting_prep_buffer);
       if (s.setting_min_order !== undefined) setMinOrderValue(s.setting_min_order);
     }
-  }, [user]);
+    refreshUser();
+  }, [activeTab]);
 
   const [systemSettings, setSystemSettings] = useState(() => {
     try {
@@ -1161,7 +1162,7 @@ const OwnerSettingsPage = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Monthly Orders Meter */}
               <div className="bg-[#161720] p-4 rounded-xl border border-[#282b3d] space-y-3">
                 <div className="flex justify-between items-center text-xs font-semibold">
@@ -1206,6 +1207,35 @@ const OwnerSettingsPage = () => {
                   />
                 </div>
                 <p className="text-[11px] text-gray-400">Total items in active menu categories.</p>
+              </div>
+
+              {/* QR Codes / Tables Meter */}
+              <div className="bg-[#161720] p-4 rounded-xl border border-[#282b3d] space-y-3">
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <span className="text-gray-300">Active QR Codes / Tables</span>
+                  <span className={`font-mono ${user?.quota_usage?.tables_limit_reached ? 'text-red-400 font-bold' : 'text-amber-400'}`}>
+                    {user?.quota_usage?.tables_count ?? 0} / {user?.quota_usage?.max_tables_limit ?? 5} ({user?.quota_usage?.tables_percentage ?? 0}%)
+                  </span>
+                </div>
+                <div className="w-full h-3 bg-[#202230] rounded-full overflow-hidden p-0.5 border border-[#2e3248]">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      user?.quota_usage?.tables_limit_reached
+                        ? 'bg-rose-500 shadow-md shadow-rose-500/30'
+                        : (user?.quota_usage?.tables_percentage ?? 0) >= 70
+                        ? 'bg-amber-500 shadow-md shadow-amber-500/30'
+                        : 'bg-emerald-400 shadow-md shadow-emerald-400/30'
+                    }`}
+                    style={{ width: `${Math.min(100, user?.quota_usage?.tables_percentage ?? 0)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  {user?.quota_usage?.tables_limit_reached ? (
+                    <span className="text-red-400 font-semibold">Free Trial Limit Reached ({user?.quota_usage?.max_tables_limit ?? 5} QRs max)</span>
+                  ) : (
+                    'Total active QR table codes generated.'
+                  )}
+                </p>
               </div>
             </div>
 

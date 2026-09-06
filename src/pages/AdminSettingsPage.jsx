@@ -78,12 +78,18 @@ const AdminSettingsPage = () => {
   const [freeTierMsg, setFreeTierMsg] = useState('');
   const [securityMsg, setSecurityMsg] = useState('');
 
-  // Free Tier Quota Limits
+  // Free Tier Quota Limits & QR Engine Mode
   const [freeMaxOrders, setFreeMaxOrders] = useState(() => {
     return localStorage.getItem('ff_free_max_orders') || '50';
   });
   const [freeMaxMenuItems, setFreeMaxMenuItems] = useState(() => {
     return localStorage.getItem('ff_free_max_menu_items') || '20';
+  });
+  const [freeMaxTables, setFreeMaxTables] = useState(() => {
+    return localStorage.getItem('ff_free_max_tables') || '5';
+  });
+  const [qrEngineMode, setQrEngineMode] = useState(() => {
+    return localStorage.getItem('admin_qr_engine_mode') || 'self_hosted';
   });
 
   // Maintenance Banner & Lockout Settings
@@ -168,6 +174,8 @@ const AdminSettingsPage = () => {
           if (sys.hide_locked_settings_tabs !== undefined) setHideLockedTabs(sys.hide_locked_settings_tabs);
           if (sys.free_tier_max_orders_per_month !== undefined) setFreeMaxOrders(String(sys.free_tier_max_orders_per_month));
           if (sys.free_tier_max_menu_items !== undefined) setFreeMaxMenuItems(String(sys.free_tier_max_menu_items));
+          if (sys.free_tier_max_tables !== undefined) setFreeMaxTables(String(sys.free_tier_max_tables));
+          if (sys.qr_engine_mode !== undefined) setQrEngineMode(sys.qr_engine_mode);
           if (sys.failed_login_lockout_threshold !== undefined) setLockoutThreshold(String(sys.failed_login_lockout_threshold));
           if (sys.audit_log_retention_days !== undefined) setLogRetentionDays(String(sys.audit_log_retention_days));
         }
@@ -280,6 +288,8 @@ const AdminSettingsPage = () => {
     localStorage.setItem('ff_hide_locked_tabs', JSON.stringify(hideLockedTabs));
     localStorage.setItem('ff_free_max_orders', freeMaxOrders);
     localStorage.setItem('ff_free_max_menu_items', freeMaxMenuItems);
+    localStorage.setItem('ff_free_max_tables', freeMaxTables);
+    localStorage.setItem('admin_qr_engine_mode', qrEngineMode);
 
     try {
       await authApi.updateSystemSettings({
@@ -288,7 +298,9 @@ const AdminSettingsPage = () => {
         show_pro_badges_on_user_settings: showProBadges,
         hide_locked_settings_tabs: hideLockedTabs,
         free_tier_max_orders_per_month: parseInt(freeMaxOrders, 10) || 50,
-        free_tier_max_menu_items: parseInt(freeMaxMenuItems, 10) || 20
+        free_tier_max_menu_items: parseInt(freeMaxMenuItems, 10) || 20,
+        free_tier_max_tables: parseInt(freeMaxTables, 10) || 5,
+        qr_engine_mode: qrEngineMode,
       });
       setFreeTierMsg('Free Tier user settings governance & quota limits saved globally!');
     } catch (err) {
@@ -1046,10 +1058,10 @@ const AdminSettingsPage = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-[#1d1f2b] rounded-xl border border-amber-500/20 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 bg-[#1d1f2b] rounded-xl border border-amber-500/20 shadow-sm">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
-                  Max Monthly Orders for Free Tier Users
+                  Max Monthly Orders (Free Tier)
                 </label>
                 <input
                   type="number"
@@ -1062,7 +1074,7 @@ const AdminSettingsPage = () => {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
-                  Max Menu Items for Free Tier Users
+                  Max Menu Items (Free Tier)
                 </label>
                 <input
                   type="number"
@@ -1072,6 +1084,36 @@ const AdminSettingsPage = () => {
                   className="w-full px-4 py-3 rounded-xl bg-[#161720] border border-[#2c2f42] text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
+                  Max Tables / QRs (Free Tier)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={freeMaxTables}
+                  onChange={(e) => setFreeMaxTables(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-[#161720] border border-[#2c2f42] text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-5 bg-[#1d1f2b] rounded-xl border border-[#2c2f42]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
+                QR Code Generation Engine Mode
+              </label>
+              <select
+                value={qrEngineMode}
+                onChange={(e) => setQrEngineMode(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-[#161720] border border-[#2c2f42] text-white focus:outline-none focus:border-amber-500 text-sm cursor-pointer"
+              >
+                <option value="self_hosted">Self-Hosted (Backend Media PNG & Vector SVG)</option>
+                <option value="external_api">External API (api.qrserver.com)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-2">
+                Controls whether QR codes are served directly from self-hosted backend media or routed through <code className="text-amber-300">api.qrserver.com</code> API.
+              </p>
             </div>
 
             <div className="pt-4 flex justify-end">
