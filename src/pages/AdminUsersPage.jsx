@@ -21,6 +21,7 @@ const AdminUsersPage = () => {
   });
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [actionUserId, setActionUserId] = useState(null); // to track loading for individual user toggles
+  const [selectedQuotaUser, setSelectedQuotaUser] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: '',
@@ -321,8 +322,22 @@ const AdminUsersPage = () => {
                             </button>
                             
                             {openDropdownId === user.id && (
-                              <div className="absolute right-0 mt-2 w-48 whitespace-nowrap origin-top-right rounded-xl bg-[#1a1b26] border border-[#262837] shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10 overflow-hidden">
+                              <div className="absolute right-0 mt-2 w-52 whitespace-nowrap origin-top-right rounded-xl bg-[#1a1b26] border border-[#262837] shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10 overflow-hidden">
                                 <div className="py-1">
+                                  {user.role === 'owner' && user.quota_usage && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        setSelectedQuotaUser(user);
+                                      }}
+                                      className="group flex w-full items-center px-4 py-2 text-sm text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 transition duration-150"
+                                    >
+                                      <svg className="mr-2.5 h-4 w-4 text-cyan-500/70 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                      </svg>
+                                      View Quota Telemetry
+                                    </button>
+                                  )}
                                   {user.role === 'owner' && user.subscription?.status === 'pending' && (
                                     <button
                                       onClick={() => {
@@ -364,6 +379,20 @@ const AdminUsersPage = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
                                       Continue Trial
+                                    </button>
+                                  )}
+                                  {user.role === 'owner' && user.subscription?.plan !== 'premium' && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdownId(null);
+                                        handleUpdateSubscription(user.id, 'premium', 'active');
+                                      }}
+                                      className="group flex w-full items-center px-4 py-2 text-sm text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 transition duration-150"
+                                    >
+                                      <svg className="mr-2.5 h-4 w-4 text-amber-500/70 group-hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                      </svg>
+                                      Upgrade to Premium
                                     </button>
                                   )}
                                   {user.role === 'owner' && <div className="h-px bg-[#262837] my-1 w-full" />}
@@ -464,6 +493,102 @@ const AdminUsersPage = () => {
           </div>
         )}
       </div>
+      {/* Quota Telemetry Inspector Modal */}
+      {selectedQuotaUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="bg-[#161720] border border-[#262837] rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[#262837] pb-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Live Quota Telemetry</span>
+                <h3 className="text-xl font-bold text-white font-heading mt-0.5">{selectedQuotaUser.email}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedQuotaUser(null)}
+                className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-[#262837] transition"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {selectedQuotaUser.quota_usage ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Orders */}
+                <div className="bg-[#1c1d2a] p-4 rounded-xl border border-[#2a2c3f] space-y-3">
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <span className="text-gray-300">Monthly Orders</span>
+                    <span className="text-amber-400 font-bold font-mono">
+                      {selectedQuotaUser.quota_usage.orders_used_this_month} / {selectedQuotaUser.quota_usage.max_orders_limit}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[#14151f] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-400 transition-all duration-300 rounded-full"
+                      style={{ width: `${selectedQuotaUser.quota_usage.orders_percentage}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500">Resets monthly</p>
+                </div>
+
+                {/* Menu Items */}
+                <div className="bg-[#1c1d2a] p-4 rounded-xl border border-[#2a2c3f] space-y-3">
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <span className="text-gray-300">Active Menu Items</span>
+                    <span className="text-amber-400 font-bold font-mono">
+                      {selectedQuotaUser.quota_usage.menu_items_count} / {selectedQuotaUser.quota_usage.max_menu_items_limit}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[#14151f] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-rose-500 transition-all duration-300 rounded-full"
+                      style={{ width: `${selectedQuotaUser.quota_usage.menu_items_percentage}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500">Catalog items count</p>
+                </div>
+
+                {/* QR Codes / Tables */}
+                <div className="bg-[#1c1d2a] p-4 rounded-xl border border-[#2a2c3f] space-y-3">
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <span className="text-gray-300">QR Codes / Tables</span>
+                    <span className={`font-bold font-mono ${selectedQuotaUser.quota_usage.tables_limit_reached ? 'text-red-400' : 'text-amber-400'}`}>
+                      {selectedQuotaUser.quota_usage.tables_count} / {selectedQuotaUser.quota_usage.max_tables_limit}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[#14151f] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 rounded-full ${
+                        selectedQuotaUser.quota_usage.tables_limit_reached ? 'bg-red-500' : 'bg-amber-400'
+                      }`}
+                      style={{ width: `${selectedQuotaUser.quota_usage.tables_percentage}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500">
+                    {selectedQuotaUser.quota_usage.tables_limit_reached ? (
+                      <span className="text-red-400 font-semibold">Limit Reached</span>
+                    ) : (
+                      'Generated QR tables'
+                    )}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm">No live quota metrics available for this user role.</p>
+            )}
+
+            <div className="flex justify-end pt-4 border-t border-[#262837]">
+              <button
+                onClick={() => setSelectedQuotaUser(null)}
+                className="px-5 py-2 rounded-xl bg-[#262837] text-white text-sm font-semibold hover:bg-[#323548] transition"
+              >
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}

@@ -24,7 +24,15 @@ export const getMediaUrl = (path) => {
   return `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
-export const getQrCodeImageUrl = (targetUrl) => {
+export const getQrCodeImageUrl = (qrCodePath, targetUrl) => {
+  const engineMode = localStorage.getItem('admin_qr_engine_mode');
+  if (engineMode === 'external_api' && targetUrl) {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(targetUrl)}&margin=10`;
+  }
+  if (qrCodePath) {
+    return getMediaUrl(qrCodePath);
+  }
   if (!targetUrl) return '';
   return `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(targetUrl)}&margin=10`;
 };
+

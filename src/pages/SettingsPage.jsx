@@ -50,7 +50,8 @@ const SettingsPage = () => {
     if (user?.first_name) {
       setFirstName(user.first_name);
     }
-  }, [user]);
+    refreshUser();
+  }, [activeTab]);
 
   // Handle Profile Update
   const handleUpdateProfile = async (e) => {
@@ -646,27 +647,126 @@ const SettingsPage = () => {
             <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
-            Subscription Plan & Status
+            Subscription Plan & Billing
           </h2>
 
           <div className="p-6 bg-gradient-to-br from-[#1d1f2b] to-[#161720] rounded-xl border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-                {user?.subscription?.plan || 'Free Trial'}
+                {user?.subscription?.plan?.toUpperCase() || 'FREE_TRIAL'}
               </span>
               <h3 className="text-2xl font-black text-white mt-3 font-heading">RestroMind AI Suite</h3>
               <p className="text-sm text-gray-400 mt-1">
-                Full access to Menu Builder, Dynamic QR Codes, Live Kitchen Display, and Analytics.
+                Full access to Menu Management, Dynamic QR Codes, Live Orders Board, Thermal Printing, and Analytics.
               </p>
             </div>
 
             <div className="text-right">
               <div className="text-3xl font-extrabold text-amber-400 font-heading">
-                {user?.subscription?.days_remaining ?? 7} Days
+                {user?.subscription?.days_remaining ?? 28} Days
               </div>
-              <p className="text-xs text-gray-400">Remaining in Trial</p>
+              <p className="text-xs text-gray-400">Remaining in Free Trial</p>
             </div>
           </div>
+
+          {/* Quota Usage Matrix Card */}
+          {user?.role === 'owner' && (
+            <div className="p-6 bg-[#14151f] rounded-xl border border-[#262837] space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2 font-heading">
+                    <span className="text-amber-400 text-lg">📊</span>
+                    Live Free Tier Usage Quota
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Real-time resource tracking for your monthly orders & active menu catalog items.
+                  </p>
+                </div>
+                <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/30 flex items-center gap-1">
+                  FREE TIER LIMITS ⚡
+                </span>
+              </div>
+
+              {(() => {
+                const q = user?.quota_usage || {};
+                const ordersUsed = q.orders_used_this_month ?? 0;
+                const maxOrders = q.max_orders_limit ?? 50;
+                const ordersPct = q.orders_percentage ?? Math.min(100, Math.round((ordersUsed / (maxOrders || 1)) * 100));
+
+                const menuCount = q.menu_items_count ?? 0;
+                const maxMenu = q.max_menu_items_limit ?? 20;
+                const menuPct = q.menu_items_percentage ?? Math.min(100, Math.round((menuCount / (maxMenu || 1)) * 100));
+
+                const tablesCount = q.tables_count ?? 0;
+                const maxTables = q.max_tables_limit ?? 5;
+                const tablesPct = q.tables_percentage ?? Math.min(100, Math.round((tablesCount / (maxTables || 1)) * 100));
+                const tablesLimitReached = q.tables_limit_reached ?? (tablesCount >= maxTables);
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Monthly Orders Quota Card */}
+                    <div className="bg-[#1c1d2a] p-4 rounded-xl border border-[#2a2c3f] space-y-3">
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="text-gray-300">Monthly Orders Used</span>
+                        <span className="text-amber-400 font-bold font-mono">
+                          {ordersUsed} / {maxOrders} ({ordersPct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-[#14151f] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-400 transition-all duration-300 rounded-full"
+                          style={{ width: `${ordersPct}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Resets on 1st of every calendar month.</p>
+                    </div>
+
+                    {/* Menu Items Quota Card */}
+                    <div className="bg-[#1c1d2a] p-4 rounded-xl border border-[#2a2c3f] space-y-3">
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="text-gray-300">Active Menu Items</span>
+                        <span className="text-amber-400 font-bold font-mono">
+                          {menuCount} / {maxMenu} ({menuPct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-[#14151f] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-rose-500 transition-all duration-300 rounded-full"
+                          style={{ width: `${menuPct}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Total items in active menu categories.</p>
+                    </div>
+
+                    {/* QR Codes / Tables Quota Card */}
+                    <div className="bg-[#1c1d2a] p-4 rounded-xl border border-[#2a2c3f] space-y-3">
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="text-gray-300">Active QR Codes / Tables</span>
+                        <span className={`font-bold font-mono ${tablesLimitReached ? 'text-red-400' : 'text-amber-400'}`}>
+                          {tablesCount} / {maxTables} ({tablesPct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-[#14151f] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 rounded-full ${
+                            tablesLimitReached ? 'bg-red-500' : 'bg-amber-400'
+                          }`}
+                          style={{ width: `${tablesPct}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-[11px] text-gray-500">
+                        {tablesLimitReached ? (
+                          <span className="text-red-400 font-semibold">Free Trial Limit Reached ({maxTables}/{maxTables} QRs)</span>
+                        ) : (
+                          'Total active QR table codes generated.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
