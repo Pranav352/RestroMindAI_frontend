@@ -23,15 +23,23 @@ export const ordersApi = {
     return response.data;
   },
 
-  // Owner action: Get all orders for the owner's restaurants
-  getOwnerOrders: async () => {
-    const response = await api.get('/api/orders/');
+  // Owner action: Get all orders for the owner's restaurants, optionally filtered by date (YYYY-MM-DD)
+  getOwnerOrders: async (date = null) => {
+    const url = date && date !== 'all' ? `/api/orders/?date=${date}` : '/api/orders/';
+    const response = await api.get(url);
     return response.data;
   },
 
   // Owner action: Update status of a specific order
-  updateOrderStatus: async (orderId, status) => {
-    const response = await api.patch(`/api/orders/${orderId}/`, { status });
+  updateOrderStatus: async (orderId, status, paymentMethod = null, cancellationReason = null) => {
+    const payload = { status };
+    if (paymentMethod) {
+      payload.payment_method = paymentMethod;
+    }
+    if (cancellationReason) {
+      payload.cancellation_reason = cancellationReason;
+    }
+    const response = await api.patch(`/api/orders/${orderId}/`, payload);
     return response.data;
   },
 
@@ -50,6 +58,12 @@ export const ordersApi = {
   // Public action: Cancel order (only allowed if pending)
   cancelOrder: async (token) => {
     const response = await api.post(`/api/orders/cancel/`, { token });
+    return response.data;
+  },
+
+  // Owner action: Mark a voided walkout order as recovered
+  recoverPayment: async (orderId, paymentMethod = 'upi') => {
+    const response = await api.patch(`/api/orders/${orderId}/recover_payment/`, { payment_method: paymentMethod });
     return response.data;
   }
 };

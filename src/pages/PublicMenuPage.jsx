@@ -4,6 +4,7 @@ import axios from 'axios';
 import ordersApi from '../api/orders';
 import { getApiBaseUrl, getMediaUrl } from '../config/env';
 import PopupModal from '../components/PopupModal';
+import DigitalReceiptModal from '../components/DigitalReceiptModal';
 
 const PublicMenuPage = () => {
   const { restaurantId } = useParams();
@@ -68,6 +69,7 @@ const PublicMenuPage = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const handleCancelOrder = () => {
     if (!activeOrderToken) return;
@@ -1050,6 +1052,16 @@ const PublicMenuPage = () => {
                     </span>
                   </div>
 
+                  {/* View Digital Tax Invoice Button - Only Visible when Served or Completed */}
+                  {['served', 'completed'].includes(activeOrder.status) && (
+                    <button
+                      onClick={() => setShowReceiptModal(true)}
+                      className="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+                    >
+                      <span>📄</span> View / Save Tax Invoice Receipt
+                    </button>
+                  )}
+
                   {/* Order More Food Action */}
                   <button
                     onClick={() => {
@@ -1251,6 +1263,14 @@ const PublicMenuPage = () => {
                 </div>
               </div>
 
+              {/* Digital Receipt Trigger Button */}
+              <button
+                onClick={() => setShowReceiptModal(true)}
+                className="w-full py-3 bg-[#1d1f2b] hover:bg-[#262837] border border-amber-500/30 text-amber-400 font-extrabold rounded-xl transition duration-200 text-xs flex items-center justify-center gap-2 shadow"
+              >
+                <span>📄</span> View / Save Tax Invoice Receipt
+              </button>
+
               {/* Auto Redirect Progress Bar */}
               <div className="space-y-2">
                 <div className="w-full bg-[#1d1f2b] rounded-full h-1.5 overflow-hidden">
@@ -1278,6 +1298,16 @@ const PublicMenuPage = () => {
             </div>
           </div>
         )}
+
+        {/* Customer Digital Tax Invoice Modal */}
+        <DigitalReceiptModal
+          order={completedOrder || activeOrder}
+          restaurant={menuData?.restaurant || { name: menuData?.name || 'Restaurant', currency: menuData?.currency || '₹' }}
+          isOpen={showReceiptModal}
+          onClose={() => setShowReceiptModal(false)}
+          showWhatsAppShare={false}
+          showPrintSave={false}
+        />
 
         {/* Global Branded Popup Modal */}
         <PopupModal

@@ -48,6 +48,11 @@ export const authApi = {
   getSystemDiagnostics: async () => {
     const response = await api.get('/api/auth/system-diagnostics/');
     return response.data;
+  },
+
+  getOwnerStats: async (timeframe = 'today') => {
+    const response = await api.get(`/api/owner/stats/?timeframe=${timeframe}`);
+    return response.data;
   }
 };
 

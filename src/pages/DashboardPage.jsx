@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
+import restaurantApi from '../api/restaurant';
+import authApi from '../api/auth';
+import ordersApi from '../api/orders';
+import DatePickerModal, { getLocalTodayDateString } from '../components/DatePickerModal';
+import DigitalReceiptModal from '../components/DigitalReceiptModal';
 import { getMediaUrl } from '../config/env';
 
 const AdminDashboard = () => {
@@ -332,6 +337,16 @@ const AdminDashboard = () => {
 
 const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
   const [restaurant, setRestaurant] = useState(null);
+  const [datePreset, setDatePreset] = useState('today'); // 'today' | 'yesterday' | 'custom' | 'all'
+  const [selectedCustomDate, setSelectedCustomDate] = useState(() => getLocalTodayDateString());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue' or 'orders'
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
+  const [updatingStoreStatus, setUpdatingStoreStatus] = useState(false);
+  const [peakHour, setPeakHour] = useState(null);
+  const [categorySales, setCategorySales] = useState([]);
+  const [selectedReceiptOrder, setSelectedReceiptOrder] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [stats, setStats] = useState({
     categoriesCount: 0,
     itemsCount: 0,
@@ -339,13 +354,20 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
     todayOrdersCount: 0,
     todayPendingOrdersCount: 0,
     todayRevenue: 0.0,
+    revenueDelta: 0.0,
+    ordersDelta: 0.0,
+    aov: 0.0,
+    occupancyRate: 0.0,
+    cancellationRate: 0.0,
+    timeframeLabel: 'Today'
   });
+  const [topSellingItems, setTopSellingItems] = useState([]);
+  const [hourlySales, setHourlySales] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const subscription = user?.subscription;
-  // An subscription is active only if status is 'active' and has remaining days or doesn't have an expiry
   const isSubscriptionActive = subscription?.status === 'active' && 
     (subscription?.days_remaining > 0 || subscription?.days_remaining === null);
 
@@ -392,19 +414,37 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
     return null;
   };
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [statsResponse, restResponse] = await Promise.all([
-          api.get('/api/owner/stats/'),
-          api.get('/api/restaurants/')
-        ]);
+  const fetchDashboardData = async (selectedTimeframe = timeframe, isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    try {
+      setError('');
+      const [statsResResult, restResResult] = await Promise.allSettled([
+        authApi.getOwnerStats(selectedTimeframe),
+        api.get('/api/restaurants/')
+      ]);
 
-        if (statsResponse.data && statsResponse.data.has_restaurant) {
-          if (restResponse.data && restResponse.data.length > 0) {
-            setRestaurant(restResponse.data[0]);
-          }
-          const s = statsResponse.data.stats;
+      const statsResponse = statsResResult.status === 'fulfilled' ? statsResResult.value : null;
+      const restResponse = restResResult.status === 'fulfilled' ? restResResult.value : null;
+
+      const userRestaurants = Array.isArray(restResponse?.data) ? restResponse.data : [];
+      const hasRestaurantInList = userRestaurants.length > 0;
+      const hasRestaurantInStats = Boolean(statsResponse?.has_restaurant);
+
+      if (hasRestaurantInList || hasRestaurantInStats) {
+        if (hasRestaurantInList) {
+          setRestaurant(userRestaurants[0]);
+          setIsAcceptingOrders(userRestaurants[0].is_accepting_orders ?? true);
+        } else if (statsResponse?.restaurant_id) {
+          setRestaurant({
+            id: statsResponse.restaurant_id,
+            name: statsResponse.restaurant_name,
+            currency: statsResponse.currency || '₹',
+            is_accepting_orders: statsResponse.is_accepting_orders ?? true
+          });
+        }
+
+        if (statsResponse) {
+          const s = statsResponse.stats || {};
           setStats({
             categoriesCount: s.categories_count || 0,
             itemsCount: s.items_count || 0,
@@ -412,22 +452,102 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
             todayOrdersCount: s.today_orders_count || 0,
             todayPendingOrdersCount: s.today_pending_orders_count || 0,
             todayRevenue: s.today_revenue || 0.0,
+            revenueDelta: s.revenue_delta || 0.0,
+            ordersDelta: s.orders_delta || 0.0,
+            aov: s.aov || 0.0,
+            occupancyRate: s.occupancy_rate || 0.0,
+            cancellationRate: s.cancellation_rate || 0.0,
+            timeframeLabel: s.timeframe_label || 'Today'
           });
-          setRecentOrders(statsResponse.data.recent_orders || []);
-        } else {
-          setRestaurant(null);
+          setTopSellingItems(statsResponse.top_selling_items || []);
+          setHourlySales(statsResponse.hourly_sales || []);
+          setRecentOrders(statsResponse.recent_orders || []);
+          setPeakHour(statsResponse.peak_hour || null);
+          setCategorySales(statsResponse.category_sales || []);
         }
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to fetch dashboard statistics.');
-      } finally {
-        setLoading(false);
+      } else {
+        setRestaurant(null);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Failed to fetch dashboard statistics.');
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
 
-    fetchDashboardData();
-  }, [activeTenantId]);
+  const getActiveQueryDate = () => {
+    if (datePreset === 'today') return 'today';
+    if (datePreset === 'yesterday') return 'yesterday';
+    if (datePreset === 'custom') return selectedCustomDate;
+    return 'all';
+  };
 
+  // Primary fetch & 15s silent background polling
+  useEffect(() => {
+    const qDate = getActiveQueryDate();
+    fetchDashboardData(qDate);
+
+    const interval = setInterval(() => {
+      fetchDashboardData(qDate, true);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [activeTenantId, datePreset, selectedCustomDate]);
+
+  const handleToggleStoreStatus = async () => {
+    if (!restaurant) return;
+    try {
+      setUpdatingStoreStatus(true);
+      const nextStatus = !isAcceptingOrders;
+      await restaurantApi.updateStoreStatus(restaurant.id, nextStatus);
+      setIsAcceptingOrders(nextStatus);
+    } catch (err) {
+      console.error('Error updating store status:', err);
+      alert('Failed to update store status. Please try again.');
+    } finally {
+      setUpdatingStoreStatus(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!recentOrders || recentOrders.length === 0) {
+      alert('No sales data available to export for the selected period.');
+      return;
+    }
+    const headers = ['Order ID', 'Table', 'Customer', 'Date/Time', 'Status', 'Total Price'];
+    const rows = recentOrders.map(o => [
+      `#${o.id}`,
+      `Table ${o.table_number || 'Takeaway'}`,
+      `"${(o.customer_name || 'Anonymous').replace(/"/g, '""')}"`,
+      `"${new Date(o.created_at).toLocaleString()}"`,
+      o.status,
+      parseFloat(o.total_price || 0).toFixed(2)
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `sales_report_${datePreset}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleMarkServed = async (orderId) => {
+    try {
+      await ordersApi.updateOrderStatus(orderId, 'served');
+      setRecentOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'served' } : o));
+    } catch (err) {
+      console.error('Failed to update order status:', err);
+      alert('Failed to mark order as served.');
+    }
+  };
+
+  const handlePrintReceipt = (order) => {
+    setSelectedReceiptOrder(order);
+    setIsReceiptModalOpen(true);
+  };
 
   if (loading) {
     return (
@@ -497,23 +617,121 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
   const stepsCompleted = steps.filter(s => s.completed).length;
   const progressPercentage = Math.round((stepsCompleted / steps.length) * 100);
   const showChecklist = progressPercentage < 100;
+  const currencySymbol = restaurant?.currency || '₹';
+
+  const maxChartRevenue = Math.max(...(hourlySales || []).map(h => Number(h?.revenue) || 0), 100);
+  const maxChartOrders = Math.max(...(hourlySales || []).map(h => Number(h?.orders) || 0), 5);
+  const activeMaxVal = chartMetric === 'revenue' ? maxChartRevenue : maxChartOrders;
 
   return (
     <div className="space-y-8 font-sans">
       {renderSubscriptionBanner()}
       
-      {/* Welcome header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Welcome header & Store Online Control */}
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 bg-[#14151f] border border-[#232536] p-5 rounded-2xl shadow-xl">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white font-heading">
-            Dashboard
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Real-time metrics for {restaurant.name}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white font-heading">
+              {restaurant?.name || 'Restaurant'} Dashboard
+            </h1>
+            
+            {/* Store Accepting Orders Toggle Pill */}
+            <button
+              onClick={handleToggleStoreStatus}
+              disabled={updatingStoreStatus}
+              className={`px-3 py-1 rounded-full text-xs font-black transition-all flex items-center gap-1.5 shadow ${
+                isAcceptingOrders
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                  : 'bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25'
+              }`}
+              title="Toggle Store Accepting / Pausing Digital QR Orders"
+            >
+              <span className={`h-2 w-2 rounded-full ${isAcceptingOrders ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
+              <span>{isAcceptingOrders ? '🟢 Store Online (Accepting Orders)' : '🔴 Store Busy (Orders Paused)'}</span>
+            </button>
+          </div>
+          <p className="text-gray-400 text-xs mt-1">
+            Real-time sales velocity, key performance indicators & operational telemetry.
           </p>
         </div>
-        <div className="text-xs text-gray-400 font-semibold bg-[#161720] border border-[#262837] px-4 py-2.5 rounded-xl self-start sm:self-auto">
-          📅 Today: {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+
+        {/* Timeframe Selector Pod (Today, Yesterday, Custom Date, All Time) */}
+        <div className="relative bg-[#101119] border border-[#222434] p-1.5 rounded-xl flex flex-wrap items-center gap-1 self-start xl:self-auto text-xs font-bold">
+          <button
+            onClick={() => {
+              setDatePreset('today');
+              setIsDatePickerOpen(false);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+              datePreset === 'today'
+                ? 'bg-amber-500 text-black font-extrabold shadow'
+                : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => {
+              setDatePreset('yesterday');
+              setIsDatePickerOpen(false);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+              datePreset === 'yesterday'
+                ? 'bg-amber-500 text-black font-extrabold shadow'
+                : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
+            }`}
+          >
+            Yesterday
+          </button>
+          <button
+            onClick={() => {
+              setDatePreset('custom');
+              setIsDatePickerOpen(prev => !prev);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 flex items-center gap-1.5 ${
+              datePreset === 'custom'
+                ? 'bg-amber-500 text-black font-extrabold shadow'
+                : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
+            }`}
+          >
+            <span>📅</span>
+            <span>{datePreset === 'custom' ? selectedCustomDate : 'Custom Date'}</span>
+            <span className="text-[9px]">{isDatePickerOpen ? '▲' : '▼'}</span>
+          </button>
+          <button
+            onClick={() => {
+              setDatePreset('all');
+              setIsDatePickerOpen(false);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+              datePreset === 'all'
+                ? 'bg-amber-500 text-black font-extrabold shadow'
+                : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
+            }`}
+          >
+            All Time
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black font-extrabold transition duration-200 flex items-center gap-1.5 shadow ml-1"
+            title="Download Sales CSV Report for selected period"
+          >
+            <span>📥</span>
+            <span>Export CSV</span>
+          </button>
+
+          {/* Inline Dark Popover Calendar */}
+          <DatePickerModal
+            isOpen={isDatePickerOpen}
+            onClose={() => setIsDatePickerOpen(false)}
+            selectedDate={selectedCustomDate}
+            onSelectDate={(dateStr) => {
+              setSelectedCustomDate(dateStr);
+              setDatePreset('custom');
+              setIsDatePickerOpen(false);
+            }}
+          />
         </div>
       </div>
 
@@ -526,87 +744,291 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
         </div>
       )}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Today's Revenue Card */}
-        <div className="bg-[#161720] border border-[#262837] p-6 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-            <svg className="h-24 w-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Today's Revenue</p>
-          <p className="text-4xl font-extrabold text-white mt-2 font-heading">
-            {restaurant.currency}{stats.todayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {/* Primary KPI Cards (5 Cards Layout) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+        {/* Revenue Card */}
+        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+            Revenue ({stats.timeframeLabel})
           </p>
-          <div className="mt-4 text-xs text-emerald-400 font-semibold flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-            From completed & served orders
+          <p className="text-3xl font-black text-white mt-2 font-heading">
+            {currencySymbol}{(stats.todayRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <div className="mt-3 flex items-center justify-between text-xs">
+            <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
+              (stats.revenueDelta || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
+              {(stats.revenueDelta || 0) >= 0 ? `↑ +${stats.revenueDelta || 0}%` : `↓ ${stats.revenueDelta || 0}%`} vs prev
+            </span>
+            <span className="text-gray-500 text-[10px]">Net Sales</span>
           </div>
         </div>
 
-        {/* Today's Orders Card */}
-        <div className="bg-[#161720] border border-[#262837] p-6 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-            <svg className="h-24 w-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          </div>
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Today's Orders</p>
-          <p className="text-4xl font-extrabold text-white mt-2 font-heading">{stats.todayOrdersCount}</p>
-          <div className="mt-4">
+        {/* Orders Card */}
+        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+            Orders ({stats.timeframeLabel})
+          </p>
+          <p className="text-3xl font-black text-white mt-2 font-heading">{stats.todayOrdersCount || 0}</p>
+          <div className="mt-3 flex items-center justify-between text-xs">
+            <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
+              (stats.ordersDelta || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
+              {(stats.ordersDelta || 0) >= 0 ? `↑ +${stats.ordersDelta || 0}%` : `↓ ${stats.ordersDelta || 0}%`} vs prev
+            </span>
             {stats.todayPendingOrdersCount > 0 ? (
-              <div className="text-xs text-amber-400 font-semibold flex items-center gap-1.5 animate-pulse">
-                <span className="h-2 w-2 rounded-full bg-amber-400"></span>
-                {stats.todayPendingOrdersCount} pending orders to action
-              </div>
+              <span className="text-amber-400 font-extrabold animate-pulse text-[10px]">
+                ⚡ {stats.todayPendingOrdersCount} Pending
+              </span>
             ) : (
-              <div className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                All caught up!
-              </div>
+              <span className="text-emerald-400 font-semibold text-[10px]">✓ Clean Queue</span>
             )}
           </div>
         </div>
 
-        {/* Menu stats card */}
-        <div className="bg-[#161720] border border-[#262837] p-6 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-            <svg className="h-24 w-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Menu Overview</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-4xl font-extrabold text-white font-heading">{stats.itemsCount}</span>
-            <span className="text-gray-500 text-sm">items in {stats.categoriesCount} categories</span>
-          </div>
-          <div className="mt-4">
-            <Link to="/menu" className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition">
-              Manage Menu List
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+        {/* Average Order Value (AOV) Card */}
+        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+            Average Order Value (AOV)
+          </p>
+          <p className="text-3xl font-black text-amber-400 mt-2 font-heading">
+            {currencySymbol}{(stats.aov || 0).toFixed(2)}
+          </p>
+          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
+            Avg spend per completed bill
           </div>
         </div>
 
-        {/* QR Tables Card */}
-        <div className="bg-[#161720] border border-[#262837] p-6 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
-            <svg className="h-24 w-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-            </svg>
+        {/* Table Occupancy Rate Card */}
+        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+            Table Occupancy Rate
+          </p>
+          <p className="text-3xl font-black text-emerald-400 mt-2 font-heading">
+            {stats.occupancyRate || 0}%
+          </p>
+          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
+            Active dining sessions on floor
           </div>
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Active QR Tables</p>
-          <p className="text-4xl font-extrabold text-white mt-2 font-heading">{stats.tablesCount}</p>
-          <div className="mt-4">
-            <Link to="/qr" className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition">
-              Manage Tables / QR
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+        </div>
+
+        {/* Cancellation Rate Card */}
+        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+            Cancellation Rate
+          </p>
+          <p className={`text-3xl font-black mt-2 font-heading ${(stats.cancellationRate || 0) > 5 ? 'text-red-400' : 'text-gray-300'}`}>
+            {stats.cancellationRate || 0}%
+          </p>
+          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
+            Unrecovered voided orders
+          </div>
+        </div>
+      </div>
+
+      {/* Visual Sales Velocity & Analytics Section */}
+      <div className="space-y-6">
+        {/* Visual Hourly / Daily Sales Chart Component */}
+        <div className="bg-[#161720] border border-[#262837] p-5 sm:p-6 pb-4 rounded-2xl shadow-xl flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#262837] pb-4">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-extrabold text-white font-heading">
+                  Sales Velocity Chart
+                </h3>
+                <span className="px-2 py-0.5 text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md uppercase">
+                  LIVE TELEMETRY
+                </span>
+                {peakHour && peakHour.revenue > 0 && (
+                  <span className="px-2.5 py-0.5 text-[10px] font-black bg-[#1f2130] text-amber-400 border border-amber-500/30 rounded-lg flex items-center gap-1 shadow">
+                    <span>🔥 Peak Hour:</span>
+                    <span className="text-white font-extrabold">{peakHour.slot}</span>
+                    <span className="text-emerald-400 font-extrabold">({currencySymbol}{(peakHour.revenue || 0).toFixed(2)})</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {chartMetric === 'revenue' ? 'Revenue distribution' : 'Order volume counts'} across operating intervals ({stats.timeframeLabel}).
+              </p>
+            </div>
+
+            {/* Interactive Tab Switcher & Timeframe Selector Pod */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Metric Toggle Tabs */}
+              <div className="bg-[#12131c] border border-[#262837] p-1 rounded-xl flex items-center gap-1 text-xs">
+                <button
+                  onClick={() => setChartMetric('revenue')}
+                  className={`px-3 py-1.5 rounded-lg font-extrabold transition duration-200 flex items-center gap-1.5 ${
+                    chartMetric === 'revenue'
+                      ? 'bg-amber-500 text-black shadow-md'
+                      : 'text-gray-400 hover:text-white hover:bg-[#1e202e]'
+                  }`}
+                >
+                  <span>💰</span>
+                  <span>Revenue</span>
+                </button>
+                <button
+                  onClick={() => setChartMetric('orders')}
+                  className={`px-3 py-1.5 rounded-lg font-extrabold transition duration-200 flex items-center gap-1.5 ${
+                    chartMetric === 'orders'
+                      ? 'bg-cyan-500 text-black shadow-md'
+                      : 'text-gray-400 hover:text-white hover:bg-[#1e202e]'
+                  }`}
+                >
+                  <span>📦</span>
+                  <span>Orders</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bar Chart Visualization */}
+          <div className="pt-6 pb-1 relative">
+            {/* Background Grid Lines */}
+            <div className="absolute inset-x-0 top-12 bottom-8 flex flex-col justify-between pointer-events-none opacity-10">
+              <div className="border-b border-gray-400 border-dashed w-full"></div>
+              <div className="border-b border-gray-400 border-dashed w-full"></div>
+            </div>
+
+            <div className="h-56 w-full flex items-end gap-2 sm:gap-3 border-b border-[#262837] pb-2 px-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {hourlySales.map((item, idx) => {
+                const itemRev = item?.revenue || 0;
+                const itemOrders = item?.orders || 0;
+                const val = chartMetric === 'revenue' ? itemRev : itemOrders;
+                const maxVal = activeMaxVal;
+                const hasVal = val > 0;
+                const maxBarHeightPercent = 60;
+                const heightPercent = hasVal && maxVal > 0
+                  ? Math.max(12, Math.round((val / maxVal) * maxBarHeightPercent))
+                  : 0;
+
+                return (
+                  <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center gap-1.5 group relative min-w-[32px] z-10">
+                    {/* Hover Tooltip */}
+                    <div className="absolute -top-16 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-[#1b1d2a] border border-amber-500/40 text-white text-[11px] font-bold p-2.5 rounded-xl shadow-2xl z-30 pointer-events-none whitespace-nowrap">
+                      <div className="text-gray-300 font-semibold">{item.label}</div>
+                      <div className="text-amber-400 font-extrabold">{currencySymbol}{itemRev.toFixed(2)}</div>
+                      <div className="text-cyan-400 text-[10px]">{itemOrders} order(s)</div>
+                    </div>
+
+                    {/* Metric amount badge over bar if non-zero */}
+                    {hasVal ? (
+                      <span className={`text-[10px] font-black group-hover:scale-110 transition-transform font-heading leading-none pb-1 ${
+                        chartMetric === 'revenue' ? 'text-amber-400' : 'text-cyan-400'
+                      }`}>
+                        {chartMetric === 'revenue'
+                          ? `${currencySymbol}${val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val.toFixed(0)}`
+                          : `${val}`}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-transparent select-none leading-none pb-1">-</span>
+                    )}
+
+                    {/* Bar track container */}
+                    <div className="w-full flex-1 rounded-t-xl flex items-end p-0.5 group-hover:bg-amber-500/5 transition-colors">
+                      {hasVal ? (
+                        <div
+                          className={`w-full rounded-t-lg transition-all duration-500 ${
+                            chartMetric === 'revenue'
+                              ? 'bg-gradient-to-t from-amber-600 via-amber-500 to-yellow-400 group-hover:from-amber-500 group-hover:to-orange-400 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
+                              : 'bg-gradient-to-t from-blue-600 via-indigo-500 to-cyan-400 group-hover:from-blue-500 group-hover:to-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.35)]'
+                          }`}
+                          style={{ height: `${heightPercent}%` }}
+                        ></div>
+                      ) : (
+                        <div className="w-full h-1 bg-[#232635] group-hover:bg-amber-500/40 rounded-full transition-colors"></div>
+                      )}
+                    </div>
+
+                    {/* X-axis Label */}
+                    <span className={`text-[9.5px] font-bold truncate max-w-full shrink-0 transition-colors pt-1 ${hasVal ? 'text-white font-extrabold' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                      {item.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Top 5 Bestsellers & Category Revenue Share Dual Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top 5 Best-Selling Dishes Card */}
+          <div className="bg-[#161720] border border-[#262837] p-6 rounded-2xl shadow-xl space-y-4">
+            <div className="border-b border-[#262837] pb-3">
+              <h3 className="text-lg font-extrabold text-white font-heading">
+                🔥 Top 5 Best-Sellers
+              </h3>
+              <p className="text-xs text-gray-400 mt-0.5">Most ordered dishes in selected period.</p>
+            </div>
+
+            <div className="space-y-3">
+              {topSellingItems.map((dish, idx) => (
+                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3 rounded-xl space-y-1.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-extrabold text-white truncate max-w-[180px] flex items-center gap-1.5 font-heading">
+                      <span className="text-amber-400 font-bold">#{idx + 1}</span> {dish.name}
+                    </span>
+                    <div className="text-right">
+                      <span className="text-amber-400 font-extrabold">
+                        {currencySymbol}{(dish?.total_sales || 0).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-gray-400 block font-semibold">
+                        {dish?.total_qty ?? dish?.quantity ?? 0} sold
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {topSellingItems.length === 0 && (
+                <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-[#262837] rounded-xl">
+                  No dish sales recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Category Revenue Share Breakdown Card */}
+          <div className="bg-[#161720] border border-[#262837] p-6 rounded-2xl shadow-xl space-y-4">
+            <div className="border-b border-[#262837] pb-3">
+              <h3 className="text-lg font-extrabold text-white font-heading">
+                📊 Category Revenue Share
+              </h3>
+              <p className="text-xs text-gray-400 mt-0.5">Sales contribution breakdown across categories.</p>
+            </div>
+
+            <div className="space-y-3">
+              {categorySales.map((cat, idx) => (
+                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3 rounded-xl space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-extrabold text-white truncate max-w-[180px] font-heading">
+                      {cat.category}
+                    </span>
+                    <div className="text-right">
+                      <span className="text-amber-400 font-extrabold">
+                        {currencySymbol}{(cat.revenue || 0).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-gray-400 ml-2 font-bold">
+                        ({cat.percentage}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-full h-1.5 bg-[#232635] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(2, cat.percentage))}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+
+              {categorySales.length === 0 && (
+                <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-[#262837] rounded-xl">
+                  No category revenue recorded yet.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -740,7 +1162,8 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                   <th className="py-3 px-4">Customer</th>
                   <th className="py-3 px-4">Time</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Total</th>
+                  <th className="py-3 px-4">Total</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2c2f42]/40">
@@ -757,8 +1180,29 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                         {order.status}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-right font-extrabold text-white font-heading">
-                      {restaurant.currency}{parseFloat(order.total_price).toFixed(2)}
+                    <td className="py-3.5 px-4 font-extrabold text-white font-heading">
+                      {currencySymbol}{(parseFloat(order?.total_price || 0) || 0).toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {order.status !== 'served' && order.status !== 'completed' && order.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleMarkServed(order.id)}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500 hover:text-white rounded-lg transition"
+                            title="Mark Order Served"
+                          >
+                            ✓ Serve
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handlePrintReceipt(order)}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500 hover:text-black rounded-lg transition flex items-center gap-1"
+                          title="Print Digital Invoice"
+                        >
+                          <span>🖨️</span>
+                          <span>Invoice</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -804,6 +1248,14 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
           </Link>
         </div>
       </div>
+
+      {/* Digital Receipt Modal */}
+      <DigitalReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        order={selectedReceiptOrder}
+        restaurant={restaurant}
+      />
     </div>
   );
 };

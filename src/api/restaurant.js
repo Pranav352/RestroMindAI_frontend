@@ -22,6 +22,11 @@ export const restaurantApi = {
       },
     });
     return response.data;
+  },
+
+  updateStoreStatus: async (id, isAcceptingOrders) => {
+    const response = await api.patch(`/api/restaurants/${id}/`, { is_accepting_orders: isAcceptingOrders });
+    return response.data;
   }
 };
 
