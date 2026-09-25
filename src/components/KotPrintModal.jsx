@@ -1,10 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { printThermalKOTViaBluetooth } from '../utils/bluetoothPrinter';
 
 const KotPrintModal = ({ order, isOpen, onClose }) => {
+  const [btPrinting, setBtPrinting] = useState(false);
+  const [btError, setBtError] = useState('');
+
   if (!isOpen || !order) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleBluetoothPrint = async () => {
+    try {
+      setBtPrinting(true);
+      setBtError('');
+      await printThermalKOTViaBluetooth(order);
+    } catch (err) {
+      setBtError(err.message || 'Failed to print via Bluetooth');
+    } finally {
+      setBtPrinting(false);
+    }
   };
 
   const formattedDate = new Date(order.created_at || Date.now()).toLocaleString([], {
@@ -32,6 +48,12 @@ const KotPrintModal = ({ order, isOpen, onClose }) => {
             ✕
           </button>
         </div>
+
+        {btError && (
+          <div className="bg-rose-500/10 border-b border-rose-500/20 text-rose-400 px-4 py-2 text-xs font-semibold text-center">
+            ⚠️ {btError}
+          </div>
+        )}
 
         {/* Printable Ticket Container */}
         <div className="p-6 bg-white text-black font-mono text-xs space-y-4 overflow-y-auto flex-1 print:p-0 print:m-0 print:overflow-visible" id="kot-ticket-content">
@@ -71,18 +93,25 @@ const KotPrintModal = ({ order, isOpen, onClose }) => {
         </div>
 
         {/* Action Controls (Hidden on print) */}
-        <div className="p-5 border-t border-[#262837] flex gap-3 bg-[#1a1b26] print:hidden shrink-0">
+        <div className="p-5 border-t border-[#262837] flex gap-2 bg-[#1a1b26] print:hidden shrink-0">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 bg-[#1e202e] hover:bg-[#252839] text-gray-300 rounded-xl font-bold text-xs transition border border-[#2c2f42]"
+            className="px-3 py-2.5 bg-[#1e202e] hover:bg-[#252839] text-gray-300 rounded-xl font-bold text-xs transition border border-[#2c2f42]"
           >
             Close
           </button>
           <button
-            onClick={handlePrint}
-            className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-[#0f1015] rounded-xl font-extrabold text-xs transition shadow-lg flex items-center justify-center gap-2"
+            onClick={handleBluetoothPrint}
+            disabled={btPrinting}
+            className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition shadow-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            <span>🖨️</span> Print KOT Receipt
+            <span>📶</span> {btPrinting ? 'Printing...' : 'Bluetooth Print'}
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-[#0f1015] rounded-xl font-extrabold text-xs transition shadow-lg flex items-center justify-center gap-1.5"
+          >
+            <span>🖨️</span> Print KOT
           </button>
         </div>
       </div>
