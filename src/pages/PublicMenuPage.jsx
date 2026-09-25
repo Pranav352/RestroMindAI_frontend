@@ -5,6 +5,7 @@ import ordersApi from '../api/orders';
 import { getApiBaseUrl, getMediaUrl } from '../config/env';
 import PopupModal from '../components/PopupModal';
 import DigitalReceiptModal from '../components/DigitalReceiptModal';
+import { cachePublicMenu, getCachedPublicMenu, enqueueOfflineOrder } from '../utils/db';
 
 const PublicMenuPage = () => {
   const { restaurantId } = useParams();
@@ -60,8 +61,29 @@ const PublicMenuPage = () => {
     setPopup((prev) => ({ ...prev, isOpen: false }));
   };
 
-  // Cart and Order Placement States
-  const [cart, setCart] = useState({});
+  // Offline Menu Status State
+  const [isOfflineMenu, setIsOfflineMenu] = useState(false);
+
+  // Cart and Order Placement States (persisted to localStorage per restaurant)
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`cart_${restaurantId}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch (err) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    if (restaurantId) {
+      try {
+        localStorage.setItem(`cart_${restaurantId}`, JSON.stringify(cart));
+      } catch (err) {
+        console.error('Failed to save cart state:', err);
+      }
+    }
+  }, [cart, restaurantId]);
+
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState(tableParam || '');
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -279,6 +301,28 @@ const PublicMenuPage = () => {
         payload.tracking_token = activeOrderToken;
       }
 
+      // If offline, queue order payload into IndexedDB outbox immediately
+      if (!navigator.onLine) {
+        try {
+          await enqueueOfflineOrder(payload);
+          setCart({});
+          localStorage.removeItem(`cart_${restaurantId}`);
+          setIsCartOpen(false);
+          showPopup({
+            type: 'info',
+            title: 'Order Saved Offline 📡',
+            message: 'Your network connection is currently offline. Your order has been saved securely on your device and will be submitted automatically when your connection is restored!',
+            primaryText: 'Got It',
+          });
+        } catch (enqueueErr) {
+          console.error('Failed to queue offline order:', enqueueErr);
+          setOrderError('Failed to save offline order. Please try again.');
+        } finally {
+          setPlacingOrder(false);
+        }
+        return;
+      }
+
       const response = await ordersApi.createOrder(payload);
       localStorage.setItem(`active_order_token_${restaurantId}`, response.tracking_token);
       setActiveOrderToken(response.tracking_token);
@@ -288,11 +332,57 @@ const PublicMenuPage = () => {
       setIsCartOpen(true);
     } catch (err) {
       console.error('Order creation error:', err);
+
+      // Handle network drop mid-flight
+      if (!err.response || err.code === 'ERR_NETWORK') {
+        try {
+          await enqueueOfflineOrder(payload);
+          setCart({});
+          localStorage.removeItem(`cart_${restaurantId}`);
+          setIsCartOpen(false);
+          showPopup({
+            type: 'info',
+            title: 'Order Saved Offline 📡',
+            message: 'Network connection interrupted during submission. Your order has been saved locally and will submit automatically once re-connected!',
+            primaryText: 'Got It',
+          });
+          return;
+        } catch (enqueueErr) {
+          console.error('Failed to queue offline order on network failure:', enqueueErr);
+        }
+      }
+
       setOrderError(err.response?.data?.error || 'Failed to place order. Please try again.');
     } finally {
       setPlacingOrder(false);
     }
   };
+
+  // Listen for background sync engine completion to update customer UI
+  useEffect(() => {
+    const handleOfflineSynced = (e) => {
+      const { order } = e.detail || {};
+      if (order && order.restaurant == restaurantId) {
+        const trackingToken = order.access_token || order.tracking_token;
+        if (trackingToken) {
+          localStorage.setItem(`active_order_token_${restaurantId}`, trackingToken);
+          setActiveOrderToken(trackingToken);
+        }
+        setActiveOrder(order);
+        setDrawerMode('tracker');
+        setIsCartOpen(true);
+        showPopup({
+          type: 'success',
+          title: 'Offline Order Synced! 🎉',
+          message: `Your offline order #${order.id ? String(order.id).slice(0, 8) : ''} was successfully sent to the kitchen.`,
+          primaryText: 'View Order Status',
+        });
+      }
+    };
+
+    window.addEventListener('offline-order-synced', handleOfflineSynced);
+    return () => window.removeEventListener('offline-order-synced', handleOfflineSynced);
+  }, [restaurantId]);
 
   useEffect(() => {
     fetchPublicMenu();
@@ -302,6 +392,7 @@ const PublicMenuPage = () => {
     try {
       setLoading(true);
       setError('');
+      setIsOfflineMenu(false);
       const apiBase = getApiBaseUrl();
       const finalUrl = `${apiBase}/api/menu/public/${restaurantId}/`;
 
@@ -309,26 +400,32 @@ const PublicMenuPage = () => {
       console.log('Frontend Origin:', window.location.origin);
       console.log('Restaurant ID:', restaurantId);
       console.log('Table Number:', tableParam);
-      console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-      console.log('Resolved API Base URL:', apiBase);
       console.log('Final API Request URL:', finalUrl);
 
       // Call standard axios directly (no JWT interceptors) for public access
-      const response = await axios.get(finalUrl);
+      const response = await axios.get(finalUrl, { timeout: 6000 });
       console.log('Public Menu API Success! HTTP Status:', response.status);
       setMenuData(response.data);
       if (response.data?.categories?.length > 0) {
         setActiveCategory(response.data.categories[0].id);
       }
+
+      // Pre-warm IndexedDB cache for sub-second offline loading
+      cachePublicMenu(restaurantId, response.data);
     } catch (err) {
-      console.error('--- Public Menu API Failure ---');
-      console.error('Error Message:', err.message);
-      console.error('Error Code:', err.code);
-      console.error('Response Status:', err.response?.status);
-      console.error('Response Data:', err.response?.data);
-      console.error('Request Config URL:', err.config?.url);
-      console.error('Request Object:', err.request);
-      setError('Could not load the menu. Please verify the link or try again.');
+      console.warn('--- Public Menu API Network Failure — Checking IndexedDB Cache ---', err.message);
+      const cachedMenu = await getCachedPublicMenu(restaurantId);
+      if (cachedMenu) {
+        console.log('Successfully retrieved offline public menu from IndexedDB cache!');
+        setMenuData(cachedMenu);
+        setIsOfflineMenu(true);
+        if (cachedMenu.categories?.length > 0) {
+          setActiveCategory(cachedMenu.categories[0].id);
+        }
+        setError('');
+      } else {
+        setError('Could not load the menu. Please verify your connection or try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -456,6 +553,13 @@ const PublicMenuPage = () => {
       {/* Maximum-width wrapper for premium mobile presentation */}
       <div className="max-w-[480px] mx-auto bg-[#12131a] min-h-screen pb-16 shadow-2xl border-x border-[#1d202d] flex flex-col">
         
+        {/* Offline Cache Indicator Banner */}
+        {isOfflineMenu && (
+          <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-center text-xs font-bold flex items-center justify-center gap-2 shadow-md z-40">
+            <span>📡 Working Offline — Loaded from Saved Menu Cache</span>
+          </div>
+        )}
+
         {/* Sticky Header Top Section */}
         <div ref={stickyHeaderRef} className="sticky top-0 z-30 bg-[#12131a]/95 backdrop-blur-md border-b border-[#1f2231]">
           {/* Restaurant Banner & Meta */}

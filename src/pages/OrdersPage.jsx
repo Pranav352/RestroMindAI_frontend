@@ -40,6 +40,42 @@ const OrdersPage = () => {
 
   const prevActiveItemsCount = useRef(null);
   const prevOrdersMapRef = useRef({});
+  const wakeLockRef = useRef(null);
+
+  // Screen Wake Lock API implementation for kitchen display tablets
+  useEffect(() => {
+    let isMounted = true;
+
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+          console.log('[PWA KDS] Screen Wake Lock active — Kitchen display screen will remain on.');
+        } catch (err) {
+          console.warn('[PWA KDS] Wake Lock error:', err.message);
+        }
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        await requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, []);
 
   const subscription = user?.subscription;
   const isSubscriptionActive = subscription?.status === 'active' && 

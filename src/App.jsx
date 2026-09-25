@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -19,9 +19,13 @@ import OwnerSettingsPage from './pages/OwnerSettingsPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ErrorBoundary from './components/ErrorBoundary';
-
+import { initSyncEngine } from './utils/syncEngine';
 
 function App() {
+  useEffect(() => {
+    initSyncEngine();
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
