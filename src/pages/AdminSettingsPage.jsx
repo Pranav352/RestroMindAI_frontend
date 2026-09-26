@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import authApi from '../api/auth';
+import PopupModal from '../components/PopupModal';
 
 const AdminSettingsPage = () => {
   const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('platform');
+
+  // Popup Modal State
+  const [popupModalState, setPopupModalState] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
 
   // Admin Profile & Password Form State
   const [firstName, setFirstName] = useState(user?.first_name || 'Super Admin');
@@ -1147,7 +1156,12 @@ const AdminSettingsPage = () => {
                 onClick={() => {
                   localStorage.removeItem('system_settings_cache');
                   fetchDiagnostics();
-                  alert('Client system settings cache purged successfully! Re-synced with server.');
+                  setPopupModalState({
+                    isOpen: true,
+                    type: 'success',
+                    title: 'System Cache Purged',
+                    message: 'Client system settings cache purged successfully! Re-synced with server.',
+                  });
                 }}
                 className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 font-bold text-xs transition flex items-center gap-2"
               >
@@ -1287,6 +1301,16 @@ const AdminSettingsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Branded Product Popup Modal */}
+      <PopupModal
+        isOpen={popupModalState.isOpen}
+        type={popupModalState.type}
+        title={popupModalState.title}
+        message={popupModalState.message}
+        onClose={() => setPopupModalState((prev) => ({ ...prev, isOpen: false }))}
+        onPrimary={() => setPopupModalState((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

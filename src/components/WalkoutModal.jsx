@@ -4,12 +4,14 @@ const WalkoutModal = ({ order, isOpen, onClose, onConfirmVoid, loading, currency
   const [reason, setReason] = useState('Guest Walkout / Dine & Dash');
   const [customerPhone, setCustomerPhone] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
 
   useEffect(() => {
     if (isOpen && order) {
       setReason('Guest Walkout / Dine & Dash');
       setCustomerPhone(order.customer_phone || '');
       setCopiedLink(false);
+      setPhoneError('');
     }
   }, [isOpen, order]);
 
@@ -31,9 +33,10 @@ const WalkoutModal = ({ order, isOpen, onClose, onConfirmVoid, loading, currency
 
   const handleWhatsAppClick = () => {
     if (!customerPhone) {
-      alert('Please enter a customer phone number to send WhatsApp payment link.');
+      setPhoneError('Please enter a customer phone number to send WhatsApp payment link.');
       return;
     }
+    setPhoneError('');
     window.open(getWhatsAppPayLink(), '_blank');
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 3000);
@@ -153,6 +156,11 @@ const WalkoutModal = ({ order, isOpen, onClose, onConfirmVoid, loading, currency
               <p className="text-[10px] text-gray-400 mt-1.5">
                 Sends automated UPI pay request to guest via WhatsApp before voiding table.
               </p>
+              {phoneError && (
+                <p className="text-xs text-red-400 font-bold mt-1.5 flex items-center gap-1">
+                  <span>⚠️</span> {phoneError}
+                </p>
+              )}
             </div>
           </div>
 

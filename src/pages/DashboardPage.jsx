@@ -7,6 +7,7 @@ import authApi from '../api/auth';
 import ordersApi from '../api/orders';
 import DatePickerModal, { getLocalTodayDateString } from '../components/DatePickerModal';
 import DigitalReceiptModal from '../components/DigitalReceiptModal';
+import PopupModal from '../components/PopupModal';
 import { getMediaUrl } from '../config/env';
 
 const AdminDashboard = () => {
@@ -347,6 +348,16 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
   const [categorySales, setCategorySales] = useState([]);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [popupModalState, setPopupModalState] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
+
+  const showAlert = (message, title = 'Notification', type = 'info') => {
+    setPopupModalState({ isOpen: true, type, title, message });
+  };
   const [stats, setStats] = useState({
     categoriesCount: 0,
     itemsCount: 0,
@@ -504,7 +515,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
       setIsAcceptingOrders(nextStatus);
     } catch (err) {
       console.error('Error updating store status:', err);
-      alert('Failed to update store status. Please try again.');
+      showAlert('Failed to update store status. Please try again.', 'Store Status Error', 'error');
     } finally {
       setUpdatingStoreStatus(false);
     }
@@ -512,7 +523,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
   const handleExportCSV = () => {
     if (!recentOrders || recentOrders.length === 0) {
-      alert('No sales data available to export for the selected period.');
+      showAlert('No sales data available to export for the selected period.', 'Export Report', 'warning');
       return;
     }
     const headers = ['Order ID', 'Table', 'Customer', 'Date/Time', 'Status', 'Total Price'];
@@ -540,7 +551,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
       setRecentOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'served' } : o));
     } catch (err) {
       console.error('Failed to update order status:', err);
-      alert('Failed to mark order as served.');
+      showAlert('Failed to mark order as served.', 'Order Update Error', 'error');
     }
   };
 
@@ -1255,6 +1266,16 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
         onClose={() => setIsReceiptModalOpen(false)}
         order={selectedReceiptOrder}
         restaurant={restaurant}
+      />
+
+      {/* Product Popup Modal */}
+      <PopupModal
+        isOpen={popupModalState.isOpen}
+        type={popupModalState.type}
+        title={popupModalState.title}
+        message={popupModalState.message}
+        onClose={() => setPopupModalState(prev => ({ ...prev, isOpen: false }))}
+        onPrimary={() => setPopupModalState(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );
