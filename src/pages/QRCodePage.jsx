@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import useRestaurant from '../hooks/useRestaurant';
 import qrApi from '../api/qr';
 import { useAuth } from '../context/AuthContext';
-import { getCustomerMenuUrl, getQrCodeImageUrl } from '../config/env';
+import { getCustomerMenuUrl, getQrCodeImageUrl, getFallbackQrCodeUrl } from '../config/env';
 
 const SECTION_OPTIONS = [
   'Main Area',
@@ -91,8 +91,20 @@ const QRCodePage = () => {
       setTotalTablesCount(count);
 
       if (list && list.length > 0) {
-        setQrData((prev) => prev || list[0]);
-        setTableNumber((prev) => (prev ? prev : list[0].table_number));
+        setQrData((prev) => {
+          if (!prev) return list[0];
+          const matching = list.find((t) => t.id === prev.id || t.table_number === prev.table_number);
+          return matching || list[0];
+        });
+        setTableNumber((prev) => {
+          const num = parseInt(prev, 10);
+          if (!isNaN(num) && list.some((t) => t.table_number === num)) {
+            return prev;
+          }
+          return list[0].table_number;
+        });
+      } else {
+        setQrData(null);
       }
     } catch (err) {
       console.error('Error fetching tables:', err);
@@ -267,9 +279,10 @@ const QRCodePage = () => {
     const tableQrItems = await Promise.all(
       targetList.map(async (t) => {
         const url = getCustomerMenuUrl(restaurant?.id, t.table_number);
+        const fallbackUrl = getFallbackQrCodeUrl(url);
         const qrUrl = getQrCodeImageUrl(t.qr_code_url || t.qr_code, url);
-        await preloadImage(qrUrl);
-        return { ...t, customerUrl: url, qrUrl };
+        const finalQrUrl = await preloadImage(qrUrl, fallbackUrl);
+        return { ...t, customerUrl: url, qrUrl: finalQrUrl };
       })
     );
 
@@ -348,12 +361,19 @@ const QRCodePage = () => {
     }
   };
 
-  // Preload image helper
-  const preloadImage = (src) => {
+  // Preload image helper with fallback URL support
+  const preloadImage = (src, fallbackUrl) => {
     return new Promise((resolve) => {
+      if (!src) return resolve(fallbackUrl || '');
       const img = new Image();
       img.onload = () => resolve(src);
-      img.onerror = () => resolve(src);
+      img.onerror = () => {
+        if (fallbackUrl && src !== fallbackUrl) {
+          resolve(fallbackUrl);
+        } else {
+          resolve(src);
+        }
+      };
       img.src = src;
     });
   };
@@ -381,9 +401,10 @@ const QRCodePage = () => {
   const handlePrint = async (targetQrData = qrData) => {
     if (!targetQrData) return;
     const customerUrl = getCustomerMenuUrl(restaurant?.id, targetQrData.table_number);
+    const fallbackUrl = getFallbackQrCodeUrl(customerUrl);
     const absoluteQrUrl = getQrCodeImageUrl(targetQrData.qr_code_url || targetQrData.qr_code, customerUrl);
 
-    await preloadImage(absoluteQrUrl);
+    const finalQrUrl = await preloadImage(absoluteQrUrl, fallbackUrl);
 
     const displayTitle = targetQrData.label || `Table ${targetQrData.table_number}`;
     const printWindow = window.open('', '_blank');
@@ -452,7 +473,7 @@ const QRCodePage = () => {
             <h1>${restaurant?.name || 'RestroMind AI'}</h1>
             <div class="section-tag">${targetQrData.section || 'Main Area'}</div>
             <div class="qr-wrapper">
-              <img class="qr-image" src="${absoluteQrUrl}" alt="QR Code" />
+              <img class="qr-image" src="${finalQrUrl}" alt="QR Code" />
             </div>
             <div class="table-info">${displayTitle}</div>
           </div>
@@ -475,9 +496,10 @@ const QRCodePage = () => {
     const tableQrItems = await Promise.all(
       targetList.map(async (t) => {
         const url = getCustomerMenuUrl(restaurant?.id, t.table_number);
+        const fallbackUrl = getFallbackQrCodeUrl(url);
         const qrUrl = getQrCodeImageUrl(t.qr_code_url || t.qr_code, url);
-        await preloadImage(qrUrl);
-        return { ...t, customerUrl: url, qrUrl };
+        const finalQrUrl = await preloadImage(qrUrl, fallbackUrl);
+        return { ...t, customerUrl: url, qrUrl: finalQrUrl };
       })
     );
 
@@ -963,6 +985,12 @@ const QRCodePage = () => {
                       src={displayQrUrl}
                       alt={`Table ${qrData.table_number} QR Code`}
                       className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const fallback = getFallbackQrCodeUrl(currentMenuUrl);
+                        if (fallback && e.target.src !== fallback) {
+                          e.target.src = fallback;
+                        }
+                      }}
                     />
                   </div>
                   <div className="text-[#0f1015] font-bold font-heading text-lg mt-3 uppercase tracking-wider">
@@ -1250,6 +1278,12 @@ const QRCodePage = () => {
                         src={imgUrl}
                         alt={`Table ${t.table_number}`}
                         className="w-full h-full object-contain"
+                        onError={(e) => {
+                          const fallback = getFallbackQrCodeUrl(url);
+                          if (fallback && e.target.src !== fallback) {
+                            e.target.src = fallback;
+                          }
+                        }}
                       />
                     </div>
 

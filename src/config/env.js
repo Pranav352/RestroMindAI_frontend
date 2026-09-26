@@ -19,19 +19,31 @@ export const getCustomerMenuUrl = (restaurantId, tableNumber) => {
 
 export const getMediaUrl = (path) => {
   if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const apiBase = getApiBaseUrl();
-  return `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
+  let fullUrl = path;
+  if (!path.startsWith('http://') && !path.startsWith('https://')) {
+    const apiBase = getApiBaseUrl();
+    fullUrl = `${apiBase}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+  // Convert http to https if current page is running over https to prevent mixed-content blocking
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && fullUrl.startsWith('http://')) {
+    fullUrl = fullUrl.replace(/^http:/, 'https:');
+  }
+  return fullUrl;
 };
 
 export const getQrCodeImageUrl = (qrCodePath, targetUrl) => {
-  const engineMode = localStorage.getItem('admin_qr_engine_mode');
+  const engineMode = typeof localStorage !== 'undefined' ? localStorage.getItem('admin_qr_engine_mode') : null;
   if (engineMode === 'external_api' && targetUrl) {
     return `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(targetUrl)}&margin=10`;
   }
   if (qrCodePath) {
     return getMediaUrl(qrCodePath);
   }
+  if (!targetUrl) return '';
+  return `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(targetUrl)}&margin=10`;
+};
+
+export const getFallbackQrCodeUrl = (targetUrl) => {
   if (!targetUrl) return '';
   return `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(targetUrl)}&margin=10`;
 };
