@@ -267,6 +267,19 @@ const PublicMenuPage = () => {
     });
   };
 
+  const updateCartItemNotes = (itemId, notes) => {
+    setCart((prev) => {
+      if (!prev[itemId]) return prev;
+      return {
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          notes,
+        },
+      };
+    });
+  };
+
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     const finalTable = tableParam || tableNumber || activeOrder?.table_number;
@@ -278,6 +291,7 @@ const PublicMenuPage = () => {
     const itemsArray = Object.values(cart).map((c) => ({
       menu_item: c.item.id,
       quantity: c.quantity,
+      notes: (c.notes || '').trim(),
     }));
 
     if (itemsArray.length === 0) {
@@ -1219,31 +1233,41 @@ const PublicMenuPage = () => {
                   )}
 
                   <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                    {Object.values(cart).map(({ item, quantity }) => (
-                      <div key={item.id} className="bg-[#1d1f2b] border border-[#2c2f42] p-3 rounded-2xl flex items-center justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-xs text-gray-200 truncate">{item.name}</h4>
-                          <p className="text-[10px] text-amber-500 font-heading mt-0.5">
-                            {menuData.currency || '₹'}{parseFloat(item.price).toFixed(2)}
-                          </p>
+                    {Object.values(cart).map(({ item, quantity, notes }) => (
+                      <div key={item.id} className="bg-[#1d1f2b] border border-[#2c2f42] p-3 rounded-2xl space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-xs text-gray-200 truncate">{item.name}</h4>
+                            <p className="text-[10px] text-amber-500 font-heading mt-0.5">
+                              {menuData.currency || '₹'}{parseFloat(item.price).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="flex items-center bg-[#161720] border border-[#2c2f42] rounded-lg overflow-hidden shrink-0">
+                            <button
+                              onClick={() => removeFromCart(item.id)}
+                              className="px-2.5 py-1 text-xs font-bold text-amber-500 hover:bg-[#1d1f2b] transition"
+                            >
+                              -
+                            </button>
+                            <span className="px-2 text-xs font-semibold text-gray-200 min-w-[16px] text-center">
+                              {quantity}
+                            </span>
+                            <button
+                              onClick={() => addToCart(item)}
+                              className="px-2.5 py-1 text-xs font-bold text-amber-500 hover:bg-[#1d1f2b] transition"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center bg-[#161720] border border-[#2c2f42] rounded-lg overflow-hidden shrink-0">
-                          <button
-                            onClick={() => removeFromCart(item.id)}
-                            className="px-2.5 py-1 text-xs font-bold text-amber-500 hover:bg-[#1d1f2b] transition"
-                          >
-                            -
-                          </button>
-                          <span className="px-2 text-xs font-semibold text-gray-200 min-w-[16px] text-center">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={() => addToCart(item)}
-                            className="px-2.5 py-1 text-xs font-bold text-amber-500 hover:bg-[#1d1f2b] transition"
-                          >
-                            +
-                          </button>
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Special instructions (e.g. less spicy, no onions)..."
+                          value={notes || ''}
+                          onChange={(e) => updateCartItemNotes(item.id, e.target.value)}
+                          maxLength={150}
+                          className="w-full px-2.5 py-1.5 bg-[#161720] border border-[#2c2f42] focus:border-amber-500/50 rounded-lg text-[11px] text-gray-300 placeholder-gray-500 outline-none transition"
+                        />
                       </div>
                     ))}
                   </div>
