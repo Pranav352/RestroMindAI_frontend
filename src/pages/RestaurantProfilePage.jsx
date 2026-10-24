@@ -39,6 +39,7 @@ const RestaurantProfilePage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  const [showMobileMockup, setShowMobileMockup] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -303,11 +304,11 @@ const RestaurantProfilePage = () => {
       )}
 
       {/* Settings Navigation Tabs */}
-      <div className="flex border-b border-[#262837] gap-2 overflow-x-auto pb-1">
+      <div className="flex border-b border-[#262837] gap-2 overflow-x-auto flex-nowrap pb-2 scrollbar-none">
         <button
           type="button"
           onClick={() => setActiveTab('branding')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'branding'
               ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
               : 'text-gray-400 hover:text-gray-200 hover:bg-[#181a26]'
@@ -322,7 +323,7 @@ const RestaurantProfilePage = () => {
         <button
           type="button"
           onClick={() => setActiveTab('location')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'location'
               ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
               : 'text-gray-400 hover:text-gray-200 hover:bg-[#181a26]'
@@ -338,7 +339,7 @@ const RestaurantProfilePage = () => {
         <button
           type="button"
           onClick={() => setActiveTab('currency')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'currency'
               ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
               : 'text-gray-400 hover:text-gray-200 hover:bg-[#181a26]'
@@ -353,7 +354,7 @@ const RestaurantProfilePage = () => {
         <button
           type="button"
           onClick={() => setActiveTab('taxes')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'taxes'
               ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
               : 'text-gray-400 hover:text-gray-200 hover:bg-[#181a26]'
@@ -730,11 +731,28 @@ const RestaurantProfilePage = () => {
                 )}
               </button>
             </div>
+
+            {/* Mobile Toggle Button for Live Smartphone Mockup */}
+            <div className="lg:hidden pt-4 border-t border-[#262837]">
+              <button
+                type="button"
+                onClick={() => setShowMobileMockup(prev => !prev)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#1d1f2b] hover:bg-[#252838] border border-[#2c2f42] rounded-xl text-xs font-bold text-gray-300 transition"
+              >
+                <span className="flex items-center gap-2">
+                  <span>📱</span>
+                  <span>Customer Storefront Mockup</span>
+                </span>
+                <span className="text-amber-400 font-extrabold text-[11px]">
+                  {showMobileMockup ? 'Hide Preview ▲' : 'Show Live Preview ▼'}
+                </span>
+              </button>
+            </div>
           </form>
         </div>
 
         {/* Right Column: Live Smartphone Customer Device Mockup */}
-        <div className="space-y-6">
+        <div className={`space-y-6 ${showMobileMockup ? 'block' : 'hidden lg:block'}`}>
           <div className="bg-[#161720] border border-[#262837] p-6 rounded-3xl shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#23273b] pb-3">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-400 font-heading flex items-center gap-2">

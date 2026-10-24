@@ -494,7 +494,7 @@ const MenuManagementPage = () => {
                 />
                 
                 {hasSubcategories && isExpanded && (
-                  <div className="pl-8 sm:pl-12 space-y-4 border-l-2 border-[#262837] ml-4 sm:ml-6 mt-4">
+                  <div className="pl-3 sm:pl-8 md:pl-12 space-y-4 border-l-2 border-[#262837] ml-2 sm:ml-4 mt-3 sm:mt-4">
                     {subCategories.map((subCat) => {
                       const subCatItems = menuItems.filter((item) => item.category === subCat.id);
                       return (

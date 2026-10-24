@@ -955,7 +955,7 @@ const QRCodePage = () => {
 
         {/* Right QR Code Display Card */}
         <div className="lg:col-span-7">
-          <div className="bg-[#161720] border border-[#262837] rounded-3xl p-8 shadow-xl flex flex-col items-center justify-center relative overflow-hidden min-h-[440px]">
+          <div className="bg-[#161720] border border-[#262837] rounded-3xl p-4 sm:p-8 shadow-xl flex flex-col items-center justify-center relative overflow-hidden min-h-[440px]">
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl mb-4 w-full text-center">
                 {error}

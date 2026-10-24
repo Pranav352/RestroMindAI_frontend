@@ -837,54 +837,68 @@ const OrdersPage = () => {
           </p>
         </div>
 
-        {/* Right Controls: Grouped Pods for Guaranteed 1-Row Alignment */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Status & Control Pod */}
-          <div className="bg-[#101119] border border-[#222434] p-1 rounded-xl flex items-center gap-1 text-xs">
-            <div className="px-2.5 py-1 text-xs font-bold text-gray-300 flex items-center gap-1.5 border-r border-[#222434] pr-3">
-              <span className="text-amber-400 font-extrabold">🪑 Tables:</span>
-              <span className="text-amber-400 font-extrabold font-heading px-1.5 py-0.2 bg-amber-500/15 rounded border border-amber-500/25">
-                {occupiedTablesCount}
-              </span>
+        {/* Right Controls: Responsive 2-tier / touch-scrollable layout */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full xl:w-auto">
+          {/* Row 1 on Mobile: Status & Control Pod + Refresh Button */}
+          <div className="flex items-center justify-between sm:justify-start gap-2 overflow-x-auto flex-nowrap pb-0.5 sm:pb-0 scrollbar-none">
+            {/* Status & Control Pod */}
+            <div className="bg-[#101119] border border-[#222434] p-1 rounded-xl flex items-center gap-1 text-xs shrink-0">
+              <div className="px-2.5 py-1 text-xs font-bold text-gray-300 flex items-center gap-1.5 border-r border-[#222434] pr-3">
+                <span className="text-amber-400 font-extrabold">🪑 Tables:</span>
+                <span className="text-amber-400 font-extrabold font-heading px-1.5 py-0.2 bg-amber-500/15 rounded border border-amber-500/25">
+                  {occupiedTablesCount}
+                </span>
+              </div>
+
+              {showSoundToggle && (
+                <button
+                  onClick={handleToggleSound}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    muted
+                      ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                      : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                  }`}
+                  title="Toggle Audio Alert Chime"
+                >
+                  <span>{muted ? '🔇 Sound OFF' : '🔊 Sound ON'}</span>
+                </button>
+              )}
+
+              {showKotFeatures && (
+                <button
+                  onClick={toggleAutoKotPrint}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    autoKotPrint
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                  title="Automatically open KOT Print dialog on order acceptance"
+                >
+                  <span>{autoKotPrint ? '⚡ Auto-KOT: ON' : '⚡ Auto-KOT: OFF'}</span>
+                </button>
+              )}
             </div>
 
-            {showSoundToggle && (
-              <button
-                onClick={handleToggleSound}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                  muted
-                    ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                    : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                }`}
-                title="Toggle Audio Alert Chime"
-              >
-                <span>{muted ? '🔇 Sound OFF' : '🔊 Sound ON'}</span>
-              </button>
-            )}
-
-            {showKotFeatures && (
-              <button
-                onClick={toggleAutoKotPrint}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                  autoKotPrint
-                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
-                title="Automatically open KOT Print dialog on order acceptance"
-              >
-                <span>{autoKotPrint ? '⚡ Auto-KOT: ON' : '⚡ Auto-KOT: OFF'}</span>
-              </button>
-            )}
+            {/* Refresh Action Button */}
+            <button
+              onClick={() => setRefreshCount(prev => prev + 1)}
+              className="p-2.5 bg-[#101119] hover:bg-[#1c1e2b] border border-[#222434] rounded-xl text-gray-400 hover:text-gray-200 transition shrink-0"
+              title="Refresh Orders"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
           </div>
 
-          {/* Date Selector Pod */}
-          <div className="relative flex items-center gap-1 bg-[#101119] border border-[#222434] rounded-xl p-1 text-xs">
+          {/* Row 2 on Mobile: Date Selector Pod */}
+          <div className="relative flex items-center gap-1 bg-[#101119] border border-[#222434] rounded-xl p-1 text-xs overflow-x-auto flex-nowrap scrollbar-none shrink-0">
             <button
               onClick={() => {
                 setDatePreset('today');
                 setIsDatePickerOpen(false);
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
                 datePreset === 'today'
                   ? 'bg-amber-500 text-black shadow font-extrabold'
                   : 'text-gray-400 hover:text-white'
@@ -897,7 +911,7 @@ const OrdersPage = () => {
                 setDatePreset('yesterday');
                 setIsDatePickerOpen(false);
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
                 datePreset === 'yesterday'
                   ? 'bg-amber-500 text-black shadow font-extrabold'
                   : 'text-gray-400 hover:text-white'
@@ -910,7 +924,7 @@ const OrdersPage = () => {
                 setDatePreset('custom');
                 setIsDatePickerOpen(prev => !prev);
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 datePreset === 'custom'
                   ? 'bg-amber-500 text-black shadow font-extrabold'
                   : 'text-gray-400 hover:text-white'
@@ -925,7 +939,7 @@ const OrdersPage = () => {
                 setDatePreset('all');
                 setIsDatePickerOpen(false);
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
                 datePreset === 'all'
                   ? 'bg-amber-500 text-black shadow font-extrabold'
                   : 'text-gray-400 hover:text-white'
@@ -945,17 +959,6 @@ const OrdersPage = () => {
               }}
             />
           </div>
-
-          {/* Refresh Action Button */}
-          <button
-            onClick={() => setRefreshCount(prev => prev + 1)}
-            className="p-2.5 bg-[#101119] hover:bg-[#1c1e2b] border border-[#222434] rounded-xl text-gray-400 hover:text-gray-200 transition"
-            title="Refresh Orders"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -1091,7 +1094,7 @@ const OrdersPage = () => {
               <span>Search</span>
             </button>
           ) : (
-            <div className="relative animate-fadeIn min-w-[220px] sm:min-w-[260px]">
+            <div className="relative animate-fadeIn w-full sm:w-auto sm:min-w-[260px]">
               <span className="absolute left-3 top-2 text-xs text-amber-400 font-bold">🔍</span>
               <input
                 autoFocus
@@ -1118,7 +1121,7 @@ const OrdersPage = () => {
 
       {/* Interactive Toast Banner for New Round / Order Arrivals */}
       {toastAlert && (
-        <div className="fixed top-20 right-6 z-50 bg-[#1a1b26] border-2 border-amber-500/80 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 max-w-md animate-bounce">
+        <div className="fixed top-18 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-[#1a1b26] border-2 border-amber-500/80 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 animate-bounce">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl font-bold">
               🔔

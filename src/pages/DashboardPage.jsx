@@ -667,13 +667,13 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
         </div>
 
         {/* Timeframe Selector Pod (Today, Yesterday, Custom Date, All Time) */}
-        <div className="relative bg-[#101119] border border-[#222434] p-1.5 rounded-xl flex flex-wrap items-center gap-1 self-start xl:self-auto text-xs font-bold">
+        <div className="relative bg-[#101119] border border-[#222434] p-1.5 rounded-xl flex items-center gap-1 overflow-x-auto flex-nowrap max-w-full scrollbar-none self-start xl:self-auto text-xs font-bold">
           <button
             onClick={() => {
               setDatePreset('today');
               setIsDatePickerOpen(false);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 whitespace-nowrap shrink-0 ${
               datePreset === 'today'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -686,7 +686,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
               setDatePreset('yesterday');
               setIsDatePickerOpen(false);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 whitespace-nowrap shrink-0 ${
               datePreset === 'yesterday'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -699,7 +699,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
               setDatePreset('custom');
               setIsDatePickerOpen(prev => !prev);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               datePreset === 'custom'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -714,7 +714,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
               setDatePreset('all');
               setIsDatePickerOpen(false);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 whitespace-nowrap shrink-0 ${
               datePreset === 'all'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -725,7 +725,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black font-extrabold transition duration-200 flex items-center gap-1.5 shadow ml-1"
+            className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black font-extrabold transition duration-200 flex items-center gap-1.5 shadow ml-1 whitespace-nowrap shrink-0"
             title="Download Sales CSV Report for selected period"
           >
             <span>📥</span>
@@ -756,32 +756,32 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
       )}
 
       {/* Primary KPI Cards (5 Cards Layout) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5">
         {/* Revenue Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Revenue ({stats.timeframeLabel})
           </p>
-          <p className="text-3xl font-black text-white mt-2 font-heading">
+          <p className="text-xl sm:text-3xl font-black text-white mt-1.5 sm:mt-2 font-heading truncate">
             {currencySymbol}{(stats.todayRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <div className="mt-3 flex items-center justify-between text-xs">
+          <div className="mt-2.5 sm:mt-3 flex items-center justify-between text-xs">
             <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
               (stats.revenueDelta || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
               {(stats.revenueDelta || 0) >= 0 ? `↑ +${stats.revenueDelta || 0}%` : `↓ ${stats.revenueDelta || 0}%`} vs prev
             </span>
-            <span className="text-gray-500 text-[10px]">Net Sales</span>
+            <span className="text-gray-500 text-[10px] hidden sm:inline">Net Sales</span>
           </div>
         </div>
 
         {/* Orders Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Orders ({stats.timeframeLabel})
           </p>
-          <p className="text-3xl font-black text-white mt-2 font-heading">{stats.todayOrdersCount || 0}</p>
-          <div className="mt-3 flex items-center justify-between text-xs">
+          <p className="text-xl sm:text-3xl font-black text-white mt-1.5 sm:mt-2 font-heading">{stats.todayOrdersCount || 0}</p>
+          <div className="mt-2.5 sm:mt-3 flex items-center justify-between text-xs">
             <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
               (stats.ordersDelta || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
@@ -792,46 +792,46 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                 ⚡ {stats.todayPendingOrdersCount} Pending
               </span>
             ) : (
-              <span className="text-emerald-400 font-semibold text-[10px]">✓ Clean Queue</span>
+              <span className="text-emerald-400 font-semibold text-[10px] hidden sm:inline">✓ Clean Queue</span>
             )}
           </div>
         </div>
 
         {/* Average Order Value (AOV) Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Average Order Value (AOV)
           </p>
-          <p className="text-3xl font-black text-amber-400 mt-2 font-heading">
+          <p className="text-xl sm:text-3xl font-black text-amber-400 mt-1.5 sm:mt-2 font-heading truncate">
             {currencySymbol}{(stats.aov || 0).toFixed(2)}
           </p>
-          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
-            Avg spend per completed bill
+          <div className="mt-2.5 sm:mt-3 text-[10px] text-gray-400 font-semibold truncate">
+            Avg spend per bill
           </div>
         </div>
 
         {/* Table Occupancy Rate Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Table Occupancy Rate
           </p>
-          <p className="text-3xl font-black text-emerald-400 mt-2 font-heading">
+          <p className="text-xl sm:text-3xl font-black text-emerald-400 mt-1.5 sm:mt-2 font-heading">
             {stats.occupancyRate || 0}%
           </p>
-          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
-            Active dining sessions on floor
+          <div className="mt-2.5 sm:mt-3 text-[10px] text-gray-400 font-semibold truncate">
+            Active dining sessions
           </div>
         </div>
 
         {/* Cancellation Rate Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="col-span-2 sm:col-span-1 bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Cancellation Rate
           </p>
-          <p className={`text-3xl font-black mt-2 font-heading ${(stats.cancellationRate || 0) > 5 ? 'text-red-400' : 'text-gray-300'}`}>
+          <p className={`text-xl sm:text-3xl font-black mt-1.5 sm:mt-2 font-heading ${(stats.cancellationRate || 0) > 5 ? 'text-red-400' : 'text-gray-300'}`}>
             {stats.cancellationRate || 0}%
           </p>
-          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
+          <div className="mt-2.5 sm:mt-3 text-[10px] text-gray-400 font-semibold truncate">
             Unrecovered voided orders
           </div>
         </div>
@@ -952,7 +952,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                     </div>
 
                     {/* X-axis Label */}
-                    <span className={`text-[9.5px] font-bold truncate max-w-full shrink-0 transition-colors pt-1 ${hasVal ? 'text-white font-extrabold' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                    <span className={`text-[10px] sm:text-[11px] font-bold truncate max-w-full shrink-0 transition-colors pt-1 ${hasVal ? 'text-white font-extrabold' : 'text-gray-400 group-hover:text-gray-200'}`}>
                       {item.label}
                     </span>
                   </div>
