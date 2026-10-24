@@ -13,7 +13,8 @@ export default defineConfig({
       injectRegister: 'auto',
       devOptions: {
         enabled: true,
-        type: 'module'
+        type: 'module',
+        suppressWarnings: true,
       },
       includeAssets: ['favicon.svg', 'favicon.png', 'favicon.ico', 'icons/*.png'],
       manifest: {
