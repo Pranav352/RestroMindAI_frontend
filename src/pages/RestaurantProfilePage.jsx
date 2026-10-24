@@ -30,6 +30,8 @@ const RestaurantProfilePage = () => {
     phone: '',
     address: '',
     currency: '₹',
+    tax_percentage: '5.00',
+    service_charge_percentage: '0.00',
   });
 
   const [logoFile, setLogoFile] = useState(null);
@@ -48,6 +50,8 @@ const RestaurantProfilePage = () => {
             phone: rest.phone || '',
             address: rest.address || '',
             currency: rest.currency || '₹',
+            tax_percentage: rest.tax_percentage !== undefined ? String(rest.tax_percentage) : '5.00',
+            service_charge_percentage: rest.service_charge_percentage !== undefined ? String(rest.service_charge_percentage) : '0.00',
           });
           if (rest.logo) {
             setLogoPreview(getMediaUrl(rest.logo));
@@ -140,6 +144,8 @@ const RestaurantProfilePage = () => {
     data.append('phone', formData.phone.trim());
     data.append('address', formData.address.trim());
     data.append('currency', formData.currency);
+    data.append('tax_percentage', formData.tax_percentage || '0');
+    data.append('service_charge_percentage', formData.service_charge_percentage || '0');
     if (logoFile) {
       data.append('logo', logoFile);
     }
@@ -341,7 +347,22 @@ const RestaurantProfilePage = () => {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>Currency & Regional</span>
+          <span>Currency</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('taxes')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition duration-200 cursor-pointer ${
+            activeTab === 'taxes'
+              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-[#181a26]'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+          </svg>
+          <span>Taxes & Service Charges</span>
         </button>
       </div>
 
@@ -563,6 +584,124 @@ const RestaurantProfilePage = () => {
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: TAXES & SERVICE CHARGES (GST / VAT) */}
+            {activeTab === 'taxes' && (
+              <div className="bg-[#161720] border border-[#262837] p-6 md:p-8 rounded-3xl shadow-xl space-y-6 animate-fade-in">
+                <div className="flex items-center justify-between pb-4 border-b border-[#23273b]">
+                  <div>
+                    <h3 className="font-bold text-white text-base font-heading">Statutory Taxes & Service Charges</h3>
+                    <p className="text-xs text-gray-400">Configure GST, VAT, and restaurant service charges applied to customer orders.</p>
+                  </div>
+                  <span className="text-xs text-amber-400 font-bold px-3 py-1 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                    Tax Rules
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Tax Percentage */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                      Statutory Tax Rate (GST / VAT %)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        name="tax_percentage"
+                        value={formData.tax_percentage}
+                        onChange={handleChange}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        disabled={!isSubscriptionActive}
+                        className={`w-full px-4 py-3.5 rounded-xl bg-[#191b2b] border ${
+                          !isSubscriptionActive
+                            ? 'border-transparent text-gray-500 cursor-not-allowed opacity-60'
+                            : 'border-[#2d3148] focus:border-amber-500'
+                        } text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition duration-200 text-sm`}
+                        placeholder="e.g. 5.00"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">%</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1.5">
+                      Standard restaurant GST is 5.00% (or local VAT rate). Set to 0 if taxes are inclusive.
+                    </p>
+                  </div>
+
+                  {/* Service Charge Percentage */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                      Optional Service Charge (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        name="service_charge_percentage"
+                        value={formData.service_charge_percentage}
+                        onChange={handleChange}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        disabled={!isSubscriptionActive}
+                        className={`w-full px-4 py-3.5 rounded-xl bg-[#191b2b] border ${
+                          !isSubscriptionActive
+                            ? 'border-transparent text-gray-500 cursor-not-allowed opacity-60'
+                            : 'border-[#2d3148] focus:border-amber-500'
+                        } text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition duration-200 text-sm`}
+                        placeholder="e.g. 0.00"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">%</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1.5">
+                      Optional discretionary service charge (e.g. 5.00% or 10.00%). Set 0 for none.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Live Sample Bill Calculation Simulation */}
+                <div className="p-5 rounded-2xl bg-[#12131b] border border-[#23273b] space-y-3 mt-4">
+                  <div className="flex items-center justify-between border-b border-[#1f2233] pb-2">
+                    <span className="text-xs text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🧾</span>
+                      <span>Live Invoice Simulation (Sample {formData.currency}1,000 Order)</span>
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-semibold">Automatic Checkout Computation</span>
+                  </div>
+
+                  {(() => {
+                    const sampleSubtotal = 1000;
+                    const taxRate = parseFloat(formData.tax_percentage) || 0;
+                    const scRate = parseFloat(formData.service_charge_percentage) || 0;
+                    const taxVal = (sampleSubtotal * (taxRate / 100));
+                    const scVal = (sampleSubtotal * (scRate / 100));
+                    const grandTotal = sampleSubtotal + taxVal + scVal;
+
+                    return (
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex justify-between text-gray-300">
+                          <span>Food Items Subtotal:</span>
+                          <span className="font-semibold">{formData.currency}{sampleSubtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-400">
+                          <span>Statutory Tax ({taxRate}% GST/VAT):</span>
+                          <span className="font-semibold text-emerald-400">+{formData.currency}{taxVal.toFixed(2)}</span>
+                        </div>
+                        {scRate > 0 && (
+                          <div className="flex justify-between text-gray-400">
+                            <span>Service Charge ({scRate}%):</span>
+                            <span className="font-semibold text-cyan-400">+{formData.currency}{scVal.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-white font-extrabold text-sm pt-2 border-t border-[#1f2233]">
+                          <span>Grand Total Payable:</span>
+                          <span className="text-amber-400 font-heading text-base">{formData.currency}{grandTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

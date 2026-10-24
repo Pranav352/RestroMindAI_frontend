@@ -850,10 +850,10 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                 <span className="px-2 py-0.5 text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md uppercase">
                   LIVE TELEMETRY
                 </span>
-                {peakHour && peakHour.revenue > 0 && (
+                {peakHour && (peakHour.revenue > 0 || peakHour.orders > 0) && (
                   <span className="px-2.5 py-0.5 text-[10px] font-black bg-[#1f2130] text-amber-400 border border-amber-500/30 rounded-lg flex items-center gap-1 shadow">
-                    <span>🔥 Peak Hour:</span>
-                    <span className="text-white font-extrabold">{peakHour.slot}</span>
+                    <span>🔥 Peak Slot:</span>
+                    <span className="text-white font-extrabold">{peakHour.slot || peakHour.label}</span>
                     <span className="text-emerald-400 font-extrabold">({currencySymbol}{(peakHour.revenue || 0).toFixed(2)})</span>
                   </span>
                 )}
@@ -917,7 +917,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                   <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center gap-1.5 group relative min-w-[32px] z-10">
                     {/* Hover Tooltip */}
                     <div className="absolute -top-16 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-[#1b1d2a] border border-amber-500/40 text-white text-[11px] font-bold p-2.5 rounded-xl shadow-2xl z-30 pointer-events-none whitespace-nowrap">
-                      <div className="text-gray-300 font-semibold">{item.label}</div>
+                      <div className="text-gray-300 font-semibold">{item.full_label || item.label}</div>
                       <div className="text-amber-400 font-extrabold">{currencySymbol}{itemRev.toFixed(2)}</div>
                       <div className="text-cyan-400 text-[10px]">{itemOrders} order(s)</div>
                     </div>
@@ -974,27 +974,53 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
             </div>
 
             <div className="space-y-3">
-              {topSellingItems.map((dish, idx) => (
-                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3 rounded-xl space-y-1.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-extrabold text-white truncate max-w-[180px] flex items-center gap-1.5 font-heading">
-                      <span className="text-amber-400 font-bold">#{idx + 1}</span> {dish.name}
-                    </span>
-                    <div className="text-right">
-                      <span className="text-amber-400 font-extrabold">
-                        {currencySymbol}{(dish?.total_sales || 0).toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-gray-400 block font-semibold">
-                        {dish?.total_qty ?? dish?.quantity ?? 0} sold
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                const maxSold = Math.max(...(topSellingItems || []).map(d => Number(d.total_qty ?? d.quantity ?? 0)), 1);
+                return (topSellingItems || []).map((dish, idx) => {
+                  const currentSold = Number(dish?.total_qty ?? dish?.quantity ?? 0);
+                  const barWidth = Math.min(100, Math.max(5, Math.round((currentSold / maxSold) * 100)));
+                  const rankColors = [
+                    'from-amber-400 to-yellow-500 text-slate-950 shadow-amber-500/20',
+                    'from-slate-300 to-gray-400 text-slate-950',
+                    'from-amber-700 to-orange-800 text-white',
+                    'from-slate-700 to-slate-800 text-gray-300',
+                    'from-slate-700 to-slate-800 text-gray-300',
+                  ];
 
-              {topSellingItems.length === 0 && (
+                  return (
+                    <div key={dish.id || `${dish.name || 'dish'}-${idx}`} className="bg-[#12131a] border border-[#232635] p-3.5 rounded-xl space-y-2 hover:border-amber-500/30 transition duration-200">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-extrabold text-white truncate max-w-[200px] flex items-center gap-2 font-heading">
+                          <span className={`h-5 w-5 rounded-md bg-gradient-to-br ${rankColors[idx] || rankColors[3]} flex items-center justify-center text-[10px] font-black shadow-sm shrink-0`}>
+                            #{idx + 1}
+                          </span>
+                          <span className="truncate">{dish.name}</span>
+                        </span>
+                        <div className="text-right">
+                          <span className="text-amber-400 font-extrabold text-sm font-heading block">
+                            {currencySymbol}{Number(dish?.total_sales ?? dish?.revenue ?? 0).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            {currentSold} portion{currentSold !== 1 ? 's' : ''} sold
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Performance Volume Share Bar */}
+                      <div className="w-full h-1.5 bg-[#232635] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                          style={{ width: `${barWidth}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+
+              {(!topSellingItems || topSellingItems.length === 0) && (
                 <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-[#262837] rounded-xl">
-                  No dish sales recorded yet.
+                  No dish sales recorded yet in this timeframe.
                 </div>
               )}
             </div>
@@ -1011,24 +1037,24 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
             <div className="space-y-3">
               {categorySales.map((cat, idx) => (
-                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3 rounded-xl space-y-2">
+                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3.5 rounded-xl space-y-2 hover:border-amber-500/30 transition duration-200">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-extrabold text-white truncate max-w-[180px] font-heading">
-                      {cat.category}
+                      {cat.category || cat.name || 'General'}
                     </span>
                     <div className="text-right">
-                      <span className="text-amber-400 font-extrabold">
-                        {currencySymbol}{(cat.revenue || 0).toFixed(2)}
+                      <span className="text-amber-400 font-extrabold text-sm font-heading">
+                        {currencySymbol}{Number(cat.revenue ?? cat.total_sales ?? 0).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-gray-400 ml-2 font-bold">
-                        ({cat.percentage}%)
+                      <span className="text-[10px] text-gray-400 ml-2 font-bold bg-[#1f2233] px-1.5 py-0.5 rounded">
+                        {cat.percentage}% share
                       </span>
                     </div>
                   </div>
                   <div className="w-full h-1.5 bg-[#232635] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(2, cat.percentage))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(2, Number(cat.percentage) || 0))}%` }}
                     ></div>
                   </div>
                 </div>
@@ -1036,7 +1062,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
               {categorySales.length === 0 && (
                 <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-[#262837] rounded-xl">
-                  No category revenue recorded yet.
+                  No category revenue recorded yet in this timeframe.
                 </div>
               )}
             </div>

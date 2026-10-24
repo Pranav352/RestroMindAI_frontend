@@ -62,19 +62,32 @@ const PaymentModal = ({ order, isOpen, onClose, onConfirm, loading, currency = '
         {/* Content */}
         <form onSubmit={handleComplete} className="p-6 space-y-6">
           {/* Summary Box */}
-          <div className="bg-[#12131a] border border-[#232635] rounded-2xl p-4 flex justify-between items-center">
-            <div>
-              <p className="text-xs text-gray-400 font-semibold">Table Location</p>
-              <p className="text-base font-extrabold text-white font-heading">
-                Table {order.table_number || 'N/A'}
-              </p>
+          <div className="bg-[#12131a] border border-[#232635] rounded-2xl p-4 space-y-2">
+            <div className="flex justify-between items-center border-b border-[#1f2233] pb-2">
+              <div>
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Table Location</p>
+                <p className="text-base font-extrabold text-white font-heading">
+                  Table {order.table_number || 'N/A'} {order.customer_name ? `• ${order.customer_name}` : ''}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Payable</p>
+                <p className="text-2xl font-black text-amber-500 font-heading">
+                  {currency}{totalPrice.toFixed(2)}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400 font-semibold">Total Payable</p>
-              <p className="text-2xl font-black text-amber-500 font-heading">
-                {currency}{totalPrice.toFixed(2)}
-              </p>
-            </div>
+            {(parseFloat(order.tax_amount || 0) > 0 || parseFloat(order.service_charge_amount || 0) > 0) && (
+              <div className="flex justify-between text-[11px] text-gray-400 pt-1">
+                <span>Subtotal: {currency}{parseFloat(order.subtotal || (totalPrice - parseFloat(order.tax_amount || 0) - parseFloat(order.service_charge_amount || 0))).toFixed(2)}</span>
+                {parseFloat(order.tax_amount || 0) > 0 && (
+                  <span className="text-emerald-400">Tax: +{currency}{parseFloat(order.tax_amount).toFixed(2)}</span>
+                )}
+                {parseFloat(order.service_charge_amount || 0) > 0 && (
+                  <span className="text-cyan-400">Service: +{currency}{parseFloat(order.service_charge_amount).toFixed(2)}</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Payment Method Options */}
