@@ -27,12 +27,19 @@ const DigitalReceiptModal = ({ order, restaurant, isOpen, onClose, showWhatsAppS
       .map(i => `• ${i.quantity}x ${i.menu_item_name} — ${currency}${(parseFloat(i.price) * i.quantity).toFixed(2)}`)
       .join('%0A');
 
+    const subtotalVal = (parseFloat(order.subtotal || (totalPrice - parseFloat(order.tax_amount || 0) - parseFloat(order.service_charge_amount || 0)))).toFixed(2);
+    const taxVal = parseFloat(order.tax_amount || 0) > 0 ? `%0A*Tax (${order.tax_percentage || restaurant?.tax_percentage || 5}%):* ${currency}${parseFloat(order.tax_amount).toFixed(2)}` : '';
+    const scVal = parseFloat(order.service_charge_amount || 0) > 0 ? `%0A*Service Charge:* ${currency}${parseFloat(order.service_charge_amount).toFixed(2)}` : '';
+
     const text = `*${restName} — Digital Tax Invoice*%0A` +
       `*Order #:* ${order.id}%0A` +
       `*Table:* Table ${order.table_number || 'N/A'}%0A` +
       `*Date:* ${formattedDate}%0A%0A` +
       `*Items:*%0A${itemsList}%0A%0A` +
-      `*Total Amount:* ${currency}${totalPrice.toFixed(2)}%0A` +
+      `*Subtotal:* ${currency}${subtotalVal}` +
+      taxVal +
+      scVal +
+      `%0A*Grand Total:* ${currency}${totalPrice.toFixed(2)}%0A` +
       `*Payment Status:* ${isPaid ? 'PAID ✓' : 'UNPAID'}%0A%0A` +
       `Thank you for dining with us!`;
 
@@ -140,9 +147,23 @@ const DigitalReceiptModal = ({ order, restaurant, isOpen, onClose, showWhatsAppS
           {/* Financial Totals */}
           <div className="pt-2 space-y-1.5 text-xs border-t border-black">
             <div className="flex justify-between text-gray-700 font-medium">
-              <span>Subtotal:</span>
-              <span>{currency}{totalPrice.toFixed(2)}</span>
+              <span>Items Subtotal:</span>
+              <span>{currency}{(parseFloat(order.subtotal || (totalPrice - parseFloat(order.tax_amount || 0) - parseFloat(order.service_charge_amount || 0)))).toFixed(2)}</span>
             </div>
+
+            {parseFloat(order.tax_amount || 0) > 0 && (
+              <div className="flex justify-between text-gray-700 font-medium">
+                <span>Statutory Tax ({order.tax_percentage || restaurant?.tax_percentage || 5}%):</span>
+                <span>+{currency}{parseFloat(order.tax_amount).toFixed(2)}</span>
+              </div>
+            )}
+
+            {parseFloat(order.service_charge_amount || 0) > 0 && (
+              <div className="flex justify-between text-gray-700 font-medium">
+                <span>Service Charge ({order.service_charge_percentage || restaurant?.service_charge_percentage || 0}%):</span>
+                <span>+{currency}{parseFloat(order.service_charge_amount).toFixed(2)}</span>
+              </div>
+            )}
 
             <div className="flex justify-between text-sm font-black pt-2 border-t border-black">
               <span>GRAND TOTAL:</span>

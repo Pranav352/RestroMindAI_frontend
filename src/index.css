@@ -38,6 +38,15 @@ body {
   background: #f59e0b;
 }
 
+/* Utility to hide scrollbar for horizontal swipe pods */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Thermal receipt & PDF print layout fixes */
 @media print {
   body {

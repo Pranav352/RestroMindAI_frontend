@@ -667,13 +667,13 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
         </div>
 
         {/* Timeframe Selector Pod (Today, Yesterday, Custom Date, All Time) */}
-        <div className="relative bg-[#101119] border border-[#222434] p-1.5 rounded-xl flex flex-wrap items-center gap-1 self-start xl:self-auto text-xs font-bold">
+        <div className="relative bg-[#101119] border border-[#222434] p-1.5 rounded-xl flex items-center gap-1 overflow-x-auto flex-nowrap max-w-full scrollbar-none self-start xl:self-auto text-xs font-bold">
           <button
             onClick={() => {
               setDatePreset('today');
               setIsDatePickerOpen(false);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 whitespace-nowrap shrink-0 ${
               datePreset === 'today'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -686,7 +686,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
               setDatePreset('yesterday');
               setIsDatePickerOpen(false);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 whitespace-nowrap shrink-0 ${
               datePreset === 'yesterday'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -699,7 +699,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
               setDatePreset('custom');
               setIsDatePickerOpen(prev => !prev);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               datePreset === 'custom'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -714,7 +714,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
               setDatePreset('all');
               setIsDatePickerOpen(false);
             }}
-            className={`px-3.5 py-1.5 rounded-lg transition duration-200 ${
+            className={`px-3.5 py-1.5 rounded-lg transition duration-200 whitespace-nowrap shrink-0 ${
               datePreset === 'all'
                 ? 'bg-amber-500 text-black font-extrabold shadow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1c29]'
@@ -725,7 +725,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black font-extrabold transition duration-200 flex items-center gap-1.5 shadow ml-1"
+            className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black font-extrabold transition duration-200 flex items-center gap-1.5 shadow ml-1 whitespace-nowrap shrink-0"
             title="Download Sales CSV Report for selected period"
           >
             <span>📥</span>
@@ -756,32 +756,32 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
       )}
 
       {/* Primary KPI Cards (5 Cards Layout) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5">
         {/* Revenue Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Revenue ({stats.timeframeLabel})
           </p>
-          <p className="text-3xl font-black text-white mt-2 font-heading">
+          <p className="text-xl sm:text-3xl font-black text-white mt-1.5 sm:mt-2 font-heading truncate">
             {currencySymbol}{(stats.todayRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <div className="mt-3 flex items-center justify-between text-xs">
+          <div className="mt-2.5 sm:mt-3 flex items-center justify-between text-xs">
             <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
               (stats.revenueDelta || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
               {(stats.revenueDelta || 0) >= 0 ? `↑ +${stats.revenueDelta || 0}%` : `↓ ${stats.revenueDelta || 0}%`} vs prev
             </span>
-            <span className="text-gray-500 text-[10px]">Net Sales</span>
+            <span className="text-gray-500 text-[10px] hidden sm:inline">Net Sales</span>
           </div>
         </div>
 
         {/* Orders Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Orders ({stats.timeframeLabel})
           </p>
-          <p className="text-3xl font-black text-white mt-2 font-heading">{stats.todayOrdersCount || 0}</p>
-          <div className="mt-3 flex items-center justify-between text-xs">
+          <p className="text-xl sm:text-3xl font-black text-white mt-1.5 sm:mt-2 font-heading">{stats.todayOrdersCount || 0}</p>
+          <div className="mt-2.5 sm:mt-3 flex items-center justify-between text-xs">
             <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
               (stats.ordersDelta || 0) >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
             }`}>
@@ -792,46 +792,46 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                 ⚡ {stats.todayPendingOrdersCount} Pending
               </span>
             ) : (
-              <span className="text-emerald-400 font-semibold text-[10px]">✓ Clean Queue</span>
+              <span className="text-emerald-400 font-semibold text-[10px] hidden sm:inline">✓ Clean Queue</span>
             )}
           </div>
         </div>
 
         {/* Average Order Value (AOV) Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Average Order Value (AOV)
           </p>
-          <p className="text-3xl font-black text-amber-400 mt-2 font-heading">
+          <p className="text-xl sm:text-3xl font-black text-amber-400 mt-1.5 sm:mt-2 font-heading truncate">
             {currencySymbol}{(stats.aov || 0).toFixed(2)}
           </p>
-          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
-            Avg spend per completed bill
+          <div className="mt-2.5 sm:mt-3 text-[10px] text-gray-400 font-semibold truncate">
+            Avg spend per bill
           </div>
         </div>
 
         {/* Table Occupancy Rate Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Table Occupancy Rate
           </p>
-          <p className="text-3xl font-black text-emerald-400 mt-2 font-heading">
+          <p className="text-xl sm:text-3xl font-black text-emerald-400 mt-1.5 sm:mt-2 font-heading">
             {stats.occupancyRate || 0}%
           </p>
-          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
-            Active dining sessions on floor
+          <div className="mt-2.5 sm:mt-3 text-[10px] text-gray-400 font-semibold truncate">
+            Active dining sessions
           </div>
         </div>
 
         {/* Cancellation Rate Card */}
-        <div className="bg-[#161720] border border-[#262837] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="col-span-2 sm:col-span-1 bg-[#161720] border border-[#262837] p-3.5 sm:p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-[#383a53] transition duration-300">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">
             Cancellation Rate
           </p>
-          <p className={`text-3xl font-black mt-2 font-heading ${(stats.cancellationRate || 0) > 5 ? 'text-red-400' : 'text-gray-300'}`}>
+          <p className={`text-xl sm:text-3xl font-black mt-1.5 sm:mt-2 font-heading ${(stats.cancellationRate || 0) > 5 ? 'text-red-400' : 'text-gray-300'}`}>
             {stats.cancellationRate || 0}%
           </p>
-          <div className="mt-3 text-[10px] text-gray-400 font-semibold">
+          <div className="mt-2.5 sm:mt-3 text-[10px] text-gray-400 font-semibold truncate">
             Unrecovered voided orders
           </div>
         </div>
@@ -850,10 +850,10 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                 <span className="px-2 py-0.5 text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md uppercase">
                   LIVE TELEMETRY
                 </span>
-                {peakHour && peakHour.revenue > 0 && (
+                {peakHour && (peakHour.revenue > 0 || peakHour.orders > 0) && (
                   <span className="px-2.5 py-0.5 text-[10px] font-black bg-[#1f2130] text-amber-400 border border-amber-500/30 rounded-lg flex items-center gap-1 shadow">
-                    <span>🔥 Peak Hour:</span>
-                    <span className="text-white font-extrabold">{peakHour.slot}</span>
+                    <span>🔥 Peak Slot:</span>
+                    <span className="text-white font-extrabold">{peakHour.slot || peakHour.label}</span>
                     <span className="text-emerald-400 font-extrabold">({currencySymbol}{(peakHour.revenue || 0).toFixed(2)})</span>
                   </span>
                 )}
@@ -917,7 +917,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                   <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center gap-1.5 group relative min-w-[32px] z-10">
                     {/* Hover Tooltip */}
                     <div className="absolute -top-16 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-[#1b1d2a] border border-amber-500/40 text-white text-[11px] font-bold p-2.5 rounded-xl shadow-2xl z-30 pointer-events-none whitespace-nowrap">
-                      <div className="text-gray-300 font-semibold">{item.label}</div>
+                      <div className="text-gray-300 font-semibold">{item.full_label || item.label}</div>
                       <div className="text-amber-400 font-extrabold">{currencySymbol}{itemRev.toFixed(2)}</div>
                       <div className="text-cyan-400 text-[10px]">{itemOrders} order(s)</div>
                     </div>
@@ -952,7 +952,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
                     </div>
 
                     {/* X-axis Label */}
-                    <span className={`text-[9.5px] font-bold truncate max-w-full shrink-0 transition-colors pt-1 ${hasVal ? 'text-white font-extrabold' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                    <span className={`text-[10px] sm:text-[11px] font-bold truncate max-w-full shrink-0 transition-colors pt-1 ${hasVal ? 'text-white font-extrabold' : 'text-gray-400 group-hover:text-gray-200'}`}>
                       {item.label}
                     </span>
                   </div>
@@ -974,27 +974,53 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
             </div>
 
             <div className="space-y-3">
-              {topSellingItems.map((dish, idx) => (
-                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3 rounded-xl space-y-1.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-extrabold text-white truncate max-w-[180px] flex items-center gap-1.5 font-heading">
-                      <span className="text-amber-400 font-bold">#{idx + 1}</span> {dish.name}
-                    </span>
-                    <div className="text-right">
-                      <span className="text-amber-400 font-extrabold">
-                        {currencySymbol}{(dish?.total_sales || 0).toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-gray-400 block font-semibold">
-                        {dish?.total_qty ?? dish?.quantity ?? 0} sold
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                const maxSold = Math.max(...(topSellingItems || []).map(d => Number(d.total_qty ?? d.quantity ?? 0)), 1);
+                return (topSellingItems || []).map((dish, idx) => {
+                  const currentSold = Number(dish?.total_qty ?? dish?.quantity ?? 0);
+                  const barWidth = Math.min(100, Math.max(5, Math.round((currentSold / maxSold) * 100)));
+                  const rankColors = [
+                    'from-amber-400 to-yellow-500 text-slate-950 shadow-amber-500/20',
+                    'from-slate-300 to-gray-400 text-slate-950',
+                    'from-amber-700 to-orange-800 text-white',
+                    'from-slate-700 to-slate-800 text-gray-300',
+                    'from-slate-700 to-slate-800 text-gray-300',
+                  ];
 
-              {topSellingItems.length === 0 && (
+                  return (
+                    <div key={dish.id || `${dish.name || 'dish'}-${idx}`} className="bg-[#12131a] border border-[#232635] p-3.5 rounded-xl space-y-2 hover:border-amber-500/30 transition duration-200">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-extrabold text-white truncate max-w-[200px] flex items-center gap-2 font-heading">
+                          <span className={`h-5 w-5 rounded-md bg-gradient-to-br ${rankColors[idx] || rankColors[3]} flex items-center justify-center text-[10px] font-black shadow-sm shrink-0`}>
+                            #{idx + 1}
+                          </span>
+                          <span className="truncate">{dish.name}</span>
+                        </span>
+                        <div className="text-right">
+                          <span className="text-amber-400 font-extrabold text-sm font-heading block">
+                            {currencySymbol}{Number(dish?.total_sales ?? dish?.revenue ?? 0).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            {currentSold} portion{currentSold !== 1 ? 's' : ''} sold
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Performance Volume Share Bar */}
+                      <div className="w-full h-1.5 bg-[#232635] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                          style={{ width: `${barWidth}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+
+              {(!topSellingItems || topSellingItems.length === 0) && (
                 <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-[#262837] rounded-xl">
-                  No dish sales recorded yet.
+                  No dish sales recorded yet in this timeframe.
                 </div>
               )}
             </div>
@@ -1011,24 +1037,24 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
             <div className="space-y-3">
               {categorySales.map((cat, idx) => (
-                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3 rounded-xl space-y-2">
+                <div key={idx} className="bg-[#12131a] border border-[#232635] p-3.5 rounded-xl space-y-2 hover:border-amber-500/30 transition duration-200">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-extrabold text-white truncate max-w-[180px] font-heading">
-                      {cat.category}
+                      {cat.category || cat.name || 'General'}
                     </span>
                     <div className="text-right">
-                      <span className="text-amber-400 font-extrabold">
-                        {currencySymbol}{(cat.revenue || 0).toFixed(2)}
+                      <span className="text-amber-400 font-extrabold text-sm font-heading">
+                        {currencySymbol}{Number(cat.revenue ?? cat.total_sales ?? 0).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-gray-400 ml-2 font-bold">
-                        ({cat.percentage}%)
+                      <span className="text-[10px] text-gray-400 ml-2 font-bold bg-[#1f2233] px-1.5 py-0.5 rounded">
+                        {cat.percentage}% share
                       </span>
                     </div>
                   </div>
                   <div className="w-full h-1.5 bg-[#232635] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(2, cat.percentage))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(2, Number(cat.percentage) || 0))}%` }}
                     ></div>
                   </div>
                 </div>
@@ -1036,7 +1062,7 @@ const OwnerDashboard = ({ user, refreshUser, activeTenantId }) => {
 
               {categorySales.length === 0 && (
                 <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-[#262837] rounded-xl">
-                  No category revenue recorded yet.
+                  No category revenue recorded yet in this timeframe.
                 </div>
               )}
             </div>

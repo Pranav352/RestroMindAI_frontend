@@ -531,7 +531,13 @@ const PublicMenuPage = () => {
     );
   }
 
-  const { name, logo, phone, address, categories } = menuData;
+  const { name, logo, phone, address, categories, tax_percentage, service_charge_percentage } = menuData;
+  const taxRate = parseFloat(tax_percentage || 0);
+  const serviceChargeRate = parseFloat(service_charge_percentage || 0);
+  const cartSubtotal = Object.values(cart).reduce((a, b) => a + b.quantity * parseFloat(b.item.price), 0);
+  const cartTax = (cartSubtotal * (taxRate / 100));
+  const cartServiceCharge = (cartSubtotal * (serviceChargeRate / 100));
+  const cartGrandTotal = cartSubtotal + cartTax + cartServiceCharge;
 
   // Filter items client-side based on search query
   const filteredCategories = categories.map(cat => {
@@ -935,10 +941,16 @@ const PublicMenuPage = () => {
                 </span>
                 <span>{activeOrder ? `Add to Table (Round ${(activeOrder.rounds_count || 1) + 1})` : 'View Basket'}</span>
               </div>
-              <span className="font-heading text-base">
-                {menuData.currency || '₹'}
-                {Object.values(cart).reduce((a, b) => a + b.quantity * parseFloat(b.item.price), 0).toFixed(2)}
-              </span>
+              <div className="text-right">
+                <span className="font-heading text-base block leading-tight font-black">
+                  {menuData.currency || '₹'}{cartGrandTotal.toFixed(2)}
+                </span>
+                {taxRate > 0 && (
+                  <span className="text-[10px] text-[#0f1015]/80 font-bold block -mt-0.5">
+                    incl. {taxRate}% tax
+                  </span>
+                )}
+              </div>
             </button>
           </div>
         ) : activeOrder ? (
@@ -1160,14 +1172,38 @@ const PublicMenuPage = () => {
                   </div>
 
                   {/* Consolidated Bill Total */}
-                  <div className="bg-[#1d1f2b] border border-[#2c2f42] p-4 rounded-xl flex justify-between items-center">
-                    <div>
-                      <span className="text-xs font-bold text-gray-300 block">Total Bill Amount Due</span>
-                      <span className="text-[10px] text-gray-500">Includes all rounds on this table</span>
+                  <div className="bg-[#1d1f2b] border border-[#2c2f42] p-4 rounded-xl space-y-2">
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Items Subtotal:</span>
+                      <span className="font-semibold text-gray-300">
+                        {menuData.currency || '₹'}{parseFloat(activeOrder.subtotal || activeOrder.total_price).toFixed(2)}
+                      </span>
                     </div>
-                    <span className="text-xl font-black text-amber-400 font-heading">
-                      {menuData.currency || '₹'}{parseFloat(activeOrder.total_price).toFixed(2)}
-                    </span>
+                    {parseFloat(activeOrder.tax_amount || 0) > 0 && (
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Statutory Tax ({activeOrder.tax_percentage || taxRate}%):</span>
+                        <span className="font-semibold text-emerald-400">
+                          +{menuData.currency || '₹'}{parseFloat(activeOrder.tax_amount).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {parseFloat(activeOrder.service_charge_amount || 0) > 0 && (
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Service Charge ({activeOrder.service_charge_percentage || serviceChargeRate}%):</span>
+                        <span className="font-semibold text-cyan-400">
+                          +{menuData.currency || '₹'}{parseFloat(activeOrder.service_charge_amount).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-[#2c2f42]">
+                      <div>
+                        <span className="text-xs font-bold text-gray-200 block">Total Bill Amount Due</span>
+                        <span className="text-[10px] text-gray-500">Includes all rounds on this table</span>
+                      </div>
+                      <span className="text-xl font-black text-amber-400 font-heading">
+                        {menuData.currency || '₹'}{parseFloat(activeOrder.total_price).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* View Digital Tax Invoice Button - Only Visible when Served or Completed */}
@@ -1312,14 +1348,31 @@ const PublicMenuPage = () => {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-xs font-bold text-gray-300">
-                        {activeOrder ? 'Round Total' : 'Total Price'}
-                      </span>
-                      <span className="text-lg font-bold text-amber-500 font-heading">
-                        {menuData.currency || '₹'}
-                        {Object.values(cart).reduce((a, b) => a + b.quantity * parseFloat(b.item.price), 0).toFixed(2)}
-                      </span>
+                    <div className="space-y-1.5 pt-3 border-t border-[#26293a] text-xs">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Items Subtotal:</span>
+                        <span className="font-semibold text-gray-200">{menuData.currency || '₹'}{cartSubtotal.toFixed(2)}</span>
+                      </div>
+                      {taxRate > 0 && (
+                        <div className="flex justify-between text-gray-400">
+                          <span>Statutory Tax ({taxRate}%):</span>
+                          <span className="font-semibold text-emerald-400">+{menuData.currency || '₹'}{cartTax.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {serviceChargeRate > 0 && (
+                        <div className="flex justify-between text-gray-400">
+                          <span>Service Charge ({serviceChargeRate}%):</span>
+                          <span className="font-semibold text-cyan-400">+{menuData.currency || '₹'}{cartServiceCharge.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t border-[#26293a]">
+                        <span className="text-xs font-extrabold text-white uppercase tracking-wider">
+                          {activeOrder ? 'Round Total (incl. tax)' : 'Grand Total'}
+                        </span>
+                        <span className="text-xl font-black text-amber-400 font-heading">
+                          {menuData.currency || '₹'}{cartGrandTotal.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
 
                     <button

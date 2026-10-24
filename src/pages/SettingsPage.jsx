@@ -197,10 +197,10 @@ const SettingsPage = () => {
         </div>
 
         {/* Tab Selector */}
-        <div className="mt-8 flex flex-wrap gap-2 border-b border-[#262837] pb-px">
+        <div className="mt-8 flex overflow-x-auto flex-nowrap gap-2 border-b border-[#262837] pb-2 scrollbar-none">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap shrink-0 ${
               activeTab === 'profile'
                 ? 'bg-amber-500 text-[#0f1015] font-semibold shadow-lg shadow-amber-500/20'
                 : 'text-gray-400 hover:text-white hover:bg-[#202230]'
@@ -214,7 +214,7 @@ const SettingsPage = () => {
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap shrink-0 ${
               activeTab === 'security'
                 ? 'bg-amber-500 text-[#0f1015] font-semibold shadow-lg shadow-amber-500/20'
                 : 'text-gray-400 hover:text-white hover:bg-[#202230]'
@@ -228,7 +228,7 @@ const SettingsPage = () => {
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap shrink-0 ${
               activeTab === 'notifications'
                 ? 'bg-amber-500 text-[#0f1015] font-semibold shadow-lg shadow-amber-500/20'
                 : 'text-gray-400 hover:text-white hover:bg-[#202230]'
@@ -243,7 +243,7 @@ const SettingsPage = () => {
           {!isAdmin && (
             <button
               onClick={() => setActiveTab('subscription')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap shrink-0 ${
                 activeTab === 'subscription'
                   ? 'bg-amber-500 text-[#0f1015] font-semibold shadow-lg shadow-amber-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-[#202230]'
@@ -259,7 +259,7 @@ const SettingsPage = () => {
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin_platform')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap shrink-0 ${
                 activeTab === 'admin_platform'
                   ? 'bg-amber-500 text-[#0f1015] font-semibold shadow-lg shadow-amber-500/20'
                   : 'text-gray-400 hover:text-white hover:bg-[#202230]'

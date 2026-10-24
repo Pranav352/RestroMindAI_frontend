@@ -262,7 +262,7 @@ const AppLayout = () => {
 
       {/* Mobile Dropdown Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-16 z-40 bg-[#161720] border-b border-[#262837] p-6 flex flex-col justify-between overflow-y-auto">
+        <div className="md:hidden fixed inset-0 top-16 z-40 bg-[#161720] border-b border-[#262837] p-6 pb-12 flex flex-col justify-between overflow-y-auto">
           <nav className="space-y-2">
             {navigation.map((item) => (
               <NavLink
@@ -383,7 +383,7 @@ const AppLayout = () => {
             </button>
           </div>
         )}
-        <div className="flex-1 p-6 md:p-10 max-w-7xl w-full mx-auto">
+        <div className="flex-1 p-4 sm:p-6 md:p-10 max-w-7xl w-full mx-auto">
           <Outlet />
         </div>
       </main>
