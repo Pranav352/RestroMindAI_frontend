@@ -100,6 +100,11 @@ api.interceptors.response.use(
       }
     }
 
+    if (error.response && error.response.status === 429) {
+      const detail = error.response.data?.detail || 'Too many requests. Please wait a moment and try again.';
+      window.dispatchEvent(new CustomEvent('api-rate-limited', { detail: { message: detail } }));
+    }
+
     return Promise.reject(error);
   }
 );

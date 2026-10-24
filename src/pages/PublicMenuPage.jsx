@@ -438,7 +438,11 @@ const PublicMenuPage = () => {
         }
         setError('');
       } else {
-        setError('Could not load the menu. Please verify your connection or try again.');
+        if (err.response?.status === 429) {
+          setError(err.response?.data?.detail || 'Too many requests. Please wait a few moments and refresh.');
+        } else {
+          setError('Could not load the menu. Please verify your connection or try again.');
+        }
       }
     } finally {
       setLoading(false);

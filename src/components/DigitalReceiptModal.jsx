@@ -3,10 +3,10 @@ import React from 'react';
 const DigitalReceiptModal = ({ order, restaurant, isOpen, onClose, showWhatsAppShare = true, showPrintSave = true }) => {
   if (!isOpen || !order) return null;
 
-  const restName = restaurant?.name || 'Restaurant';
-  const restAddress = restaurant?.address || 'Dine-In Restaurant';
-  const restPhone = restaurant?.phone || '';
-  const currency = restaurant?.currency || '₹';
+  const restName = restaurant?.name || order.restaurant_name || order.restaurant?.name || 'Restaurant';
+  const restAddress = restaurant?.address || order.restaurant_address || order.restaurant?.address || 'Dine-In Restaurant';
+  const restPhone = restaurant?.phone || order.restaurant_phone || order.restaurant?.phone || '';
+  const currency = restaurant?.currency || order.restaurant_currency || order.restaurant?.currency || '₹';
 
   const totalPrice = parseFloat(order.total_price || 0);
   const isPaid = Boolean(order.is_paid || order.status === 'completed');

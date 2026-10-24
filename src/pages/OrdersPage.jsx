@@ -8,10 +8,17 @@ import KotPrintModal from '../components/KotPrintModal';
 import DigitalReceiptModal from '../components/DigitalReceiptModal';
 import DatePickerModal, { getLocalTodayDateString } from '../components/DatePickerModal';
 import WalkoutModal from '../components/WalkoutModal';
+import useRestaurant from '../hooks/useRestaurant';
 
 const OrdersPage = () => {
   const { user } = useAuth();
-  const currencySymbol = user?.restaurant?.currency || '₹';
+  const { restaurant, fetchRestaurant } = useRestaurant();
+
+  useEffect(() => {
+    fetchRestaurant();
+  }, [fetchRestaurant]);
+
+  const currencySymbol = restaurant?.currency || user?.restaurant?.currency || '₹';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1336,7 +1343,12 @@ const OrdersPage = () => {
       {/* Digital Tax Invoice Modal */}
       <DigitalReceiptModal
         order={selectedOrderForReceipt}
-        restaurant={user?.restaurant || { name: 'Restaurant', currency: currencySymbol }}
+        restaurant={restaurant || user?.restaurant || {
+          name: selectedOrderForReceipt?.restaurant_name || 'Restaurant',
+          address: selectedOrderForReceipt?.restaurant_address || 'Dine-In Restaurant',
+          phone: selectedOrderForReceipt?.restaurant_phone || '',
+          currency: currencySymbol
+        }}
         isOpen={Boolean(selectedOrderForReceipt)}
         onClose={() => setSelectedOrderForReceipt(null)}
       />
