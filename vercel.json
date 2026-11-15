@@ -1,8 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": {
-    "deploymentEnabled": false
-  },
   "headers": [
     {
       "source": "/sw.js",
