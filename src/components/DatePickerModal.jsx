@@ -8,17 +8,37 @@ export const getLocalTodayDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
+const parseDateSafe = (dateStr) => {
+  if (!dateStr) return new Date();
+  const d = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
+const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate, triggerRef }) => {
   const popoverRef = useRef(null);
 
   // Selected date object or current date
-  const initialDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
-  const [viewDate, setViewDate] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+  const initialDate = parseDateSafe(selectedDate);
+  const [viewDate, setViewDate] = useState(
+    new Date(initialDate.getFullYear(), initialDate.getMonth(), 1)
+  );
 
-  // Handle click outside to close popover
+  // Re-sync viewDate whenever the modal is opened or selectedDate changes
+  useEffect(() => {
+    if (isOpen) {
+      const d = parseDateSafe(selectedDate);
+      setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
+    }
+  }, [isOpen, selectedDate]);
+
+  // Handle click outside to close popover without conflicting with trigger button
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target) &&
+        (!triggerRef?.current || !triggerRef.current.contains(event.target))
+      ) {
         onClose();
       }
     };
@@ -28,7 +48,7 @@ const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   if (!isOpen) return null;
 
@@ -77,11 +97,12 @@ const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
   return (
     <div
       ref={popoverRef}
-      className="absolute right-0 top-full mt-2 z-50 bg-[#161720] border border-[#262837] rounded-2xl w-64 shadow-2xl p-4 font-sans text-gray-200 space-y-3 animate-fadeIn"
+      className="absolute right-0 top-full mt-2 z-50 bg-[#161720] border border-[#262837] rounded-2xl w-64 max-w-[calc(100vw-2rem)] shadow-2xl p-4 font-sans text-gray-200 space-y-3 animate-fadeIn"
     >
       {/* Month Navigator Header */}
       <div className="flex justify-between items-center pb-2 border-b border-[#262837]">
         <button
+          type="button"
           onClick={handlePrevMonth}
           className="p-1 rounded-lg bg-[#1e202e] hover:bg-[#282b3d] text-gray-300 transition text-xs font-bold"
           title="Previous Month"
@@ -92,6 +113,7 @@ const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
           {monthNames[month]} {year}
         </span>
         <button
+          type="button"
           onClick={handleNextMonth}
           className="p-1 rounded-lg bg-[#1e202e] hover:bg-[#282b3d] text-gray-300 transition text-xs font-bold"
           title="Next Month"
@@ -119,6 +141,7 @@ const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
           return (
             <button
               key={day}
+              type="button"
               onClick={() => handleDayClick(day)}
               className={`h-7 w-7 mx-auto rounded-lg text-xs font-extrabold flex items-center justify-center transition ${
                 selected
@@ -137,6 +160,7 @@ const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
       {/* Quick Action Footer */}
       <div className="pt-2 border-t border-[#262837] flex justify-between items-center text-[11px]">
         <button
+          type="button"
           onClick={() => {
             const todayStr = getLocalTodayDateString();
             onSelectDate(todayStr);
@@ -147,6 +171,7 @@ const DatePickerModal = ({ isOpen, onClose, selectedDate, onSelectDate }) => {
           Today
         </button>
         <button
+          type="button"
           onClick={onClose}
           className="text-gray-400 hover:text-white font-bold"
         >

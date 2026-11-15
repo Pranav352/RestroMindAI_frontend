@@ -29,6 +29,7 @@ const OrdersPage = () => {
   const [datePreset, setDatePreset] = useState('today'); // 'today' | 'yesterday' | 'custom' | 'all'
   const [selectedCustomDate, setSelectedCustomDate] = useState(() => getLocalTodayDateString());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const customDateBtnRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [multiRoundOnly, setMultiRoundOnly] = useState(false);
@@ -899,70 +900,80 @@ const OrdersPage = () => {
           </div>
 
           {/* Row 2 on Mobile: Date Selector Pod */}
-          <div className="relative flex items-center gap-1 bg-[#101119] border border-[#222434] rounded-xl p-1 text-xs overflow-x-auto flex-nowrap scrollbar-none shrink-0">
-            <button
-              onClick={() => {
-                setDatePreset('today');
-                setIsDatePickerOpen(false);
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
-                datePreset === 'today'
-                  ? 'bg-amber-500 text-black shadow font-extrabold'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => {
-                setDatePreset('yesterday');
-                setIsDatePickerOpen(false);
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
-                datePreset === 'yesterday'
-                  ? 'bg-amber-500 text-black shadow font-extrabold'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Yesterday
-            </button>
-            <button
-              onClick={() => {
-                setDatePreset('custom');
-                setIsDatePickerOpen(prev => !prev);
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-                datePreset === 'custom'
-                  ? 'bg-amber-500 text-black shadow font-extrabold'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <span>📅</span>
-              <span>{datePreset === 'custom' ? selectedCustomDate : 'Custom Date'}</span>
-              <span className="text-[9px]">{isDatePickerOpen ? '▲' : '▼'}</span>
-            </button>
-            <button
-              onClick={() => {
-                setDatePreset('all');
-                setIsDatePickerOpen(false);
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
-                datePreset === 'all'
-                  ? 'bg-amber-500 text-black shadow font-extrabold'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              All Time
-            </button>
+          <div className="relative shrink-0 max-w-full">
+            <div className="flex items-center gap-1 bg-[#101119] border border-[#222434] rounded-xl p-1 text-xs overflow-x-auto flex-nowrap scrollbar-none">
+              <button
+                type="button"
+                onClick={() => {
+                  setDatePreset('today');
+                  setIsDatePickerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
+                  datePreset === 'today'
+                    ? 'bg-amber-500 text-black shadow font-extrabold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDatePreset('yesterday');
+                  setIsDatePickerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
+                  datePreset === 'yesterday'
+                    ? 'bg-amber-500 text-black shadow font-extrabold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Yesterday
+              </button>
+              <button
+                ref={customDateBtnRef}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDatePickerOpen(prev => !prev);
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                  datePreset === 'custom'
+                    ? 'bg-amber-500 text-black shadow font-extrabold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Filter by custom date"
+              >
+                <span>📅</span>
+                <span>{datePreset === 'custom' ? selectedCustomDate : 'Custom Date'}</span>
+                <span className="text-[9px]">{isDatePickerOpen ? '▲' : '▼'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDatePreset('all');
+                  setIsDatePickerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap shrink-0 ${
+                  datePreset === 'all'
+                    ? 'bg-amber-500 text-black shadow font-extrabold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                All Time
+              </button>
+            </div>
 
-            {/* Inline Dark Popover Calendar */}
+            {/* Inline Dark Popover Calendar placed outside overflow-x-auto */}
             <DatePickerModal
               isOpen={isDatePickerOpen}
               onClose={() => setIsDatePickerOpen(false)}
               selectedDate={selectedCustomDate}
+              triggerRef={customDateBtnRef}
               onSelectDate={(dateStr) => {
                 setSelectedCustomDate(dateStr);
                 setDatePreset('custom');
+                setIsDatePickerOpen(false);
               }}
             />
           </div>
